@@ -36,8 +36,9 @@ protected:
 
 class Image : public RefCounted<Image> {
 public:
-    static RefPtr<Image> create_with_size(const Gfx::IntSize&);
-    static RefPtr<Image> create_from_file(const String& file_path);
+    static RefPtr<Image> create_with_size(Gfx::IntSize const&);
+    static RefPtr<Image> create_from_file(String const& file_path);
+    static RefPtr<Image> create_from_bitmap(RefPtr<Gfx::Bitmap> bitmap);
 
     size_t layer_count() const { return m_layers.size(); }
     const Layer& layer(size_t index) const { return m_layers.at(index); }
@@ -48,12 +49,12 @@ public:
 
     void add_layer(NonnullRefPtr<Layer>);
     RefPtr<Image> take_snapshot() const;
-    void restore_snapshot(const Image&);
+    void restore_snapshot(Image const&);
 
-    void paint_into(GUI::Painter&, const Gfx::IntRect& dest_rect);
-    void save(const String& file_path) const;
-    void export_bmp(const String& file_path);
-    void export_png(const String& file_path);
+    void paint_into(GUI::Painter&, Gfx::IntRect const& dest_rect);
+    void save(String const& file_path) const;
+    void export_bmp(String const& file_path);
+    void export_png(String const& file_path);
 
     void move_layer_to_front(Layer&);
     void move_layer_to_back(Layer&);
@@ -66,13 +67,15 @@ public:
     void add_client(ImageClient&);
     void remove_client(ImageClient&);
 
-    void layer_did_modify_bitmap(Badge<Layer>, const Layer&);
-    void layer_did_modify_properties(Badge<Layer>, const Layer&);
+    void layer_did_modify_bitmap(Badge<Layer>, Layer const&);
+    void layer_did_modify_properties(Badge<Layer>, Layer const&);
 
     size_t index_of(const Layer&) const;
 
 private:
     explicit Image(const Gfx::IntSize&);
+
+    static RefPtr<Image> create_from_pixel_paint_file(String const& file_path);
 
     void did_change();
     void did_modify_layer_stack();

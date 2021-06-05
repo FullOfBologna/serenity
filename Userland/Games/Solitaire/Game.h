@@ -37,10 +37,12 @@ public:
 
     Mode mode() const { return m_mode; }
     void setup(Mode);
+    void perform_undo();
 
     Function<void(uint32_t)> on_score_update;
     Function<void()> on_game_start;
     Function<void(GameOverReason, uint32_t)> on_game_end;
+    Function<void(bool)> on_undo_availability_change;
 
 private:
     Game();
@@ -103,6 +105,19 @@ private:
         int8_t punishment { 0 };
     };
 
+    struct LastMove {
+        enum class Type {
+            Invalid,
+            MoveCards,
+            FlipCard
+        };
+
+        Type type { Type::Invalid };
+        CardStack* from { nullptr };
+        NonnullRefPtrVector<Card> cards;
+        CardStack* to { nullptr };
+    };
+
     enum StackLocation {
         Stock,
         Waste,
@@ -140,8 +155,15 @@ private:
     }
 
     void mark_intersecting_stacks_dirty(Card& intersecting_card);
+    void score_move(CardStack& from, CardStack& to, bool inverse);
+    void remember_move_for_undo(CardStack& from, CardStack& to, NonnullRefPtrVector<Card> moved_cards);
+    void remember_flip_for_undo(Card& card);
     void update_score(int to_add);
     void move_card(CardStack& from, CardStack& to);
+    void draw_cards();
+    void pop_waste_to_play_stack();
+    void auto_move_eligible_cards_to_stacks();
+    void start_timer_if_necessary();
     void start_game_over_animation();
     void stop_game_over_animation();
     void create_new_animation_card();
@@ -163,9 +185,10 @@ private:
 
     Mode m_mode { Mode::SingleCardDraw };
 
+    LastMove m_last_move;
     NonnullRefPtrVector<Card> m_focused_cards;
     NonnullRefPtrVector<Card> m_new_deck;
-    CardStack m_stacks[StackLocation::__Count];
+    NonnullRefPtrVector<CardStack> m_stacks;
     CardStack* m_focused_stack { nullptr };
     Gfx::IntPoint m_mouse_down_location;
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import struct
 from sys import argv, stderr
 from os import path
 from string import whitespace
@@ -98,7 +98,19 @@ def generate(ast):
                     "result": parse_typed_value(entry[2]) if len(entry) == 3 else None
                 })
             else:
-                print("Ignoring unknown assertion argument", entry[1][0], file=stderr)
+                if not len(tests):
+                    tests.append({
+                        "module": "",
+                        "tests": []
+                    })
+                tests[-1]["tests"].append({
+                    "kind": "testgen_fail",
+                    "function": {
+                        "name": "<unknown>",
+                        "args": []
+                    },
+                    "reason": f"Unknown assertion {entry[0][0][len('assert_'):]}"
+                })
         elif len(entry) >= 2 and entry[0][0] == 'invoke':
             # toplevel invoke :shrug:
             tests[-1]["tests"].append({
@@ -110,7 +122,19 @@ def generate(ast):
                 "result": parse_typed_value(entry[2]) if len(entry) == 3 else None
             })
         else:
-            print("Ignoring unknown entry", entry, file=stderr)
+            if not len(tests):
+                tests.append({
+                    "module": "",
+                    "tests": []
+                })
+            tests[-1]["tests"].append({
+                "kind": "testgen_fail",
+                "function": {
+                    "name": "<unknown>",
+                    "args": []
+                },
+                "reason": f"Unknown command {entry[0][0]}"
+            })
     return tests
 
 
@@ -132,7 +156,7 @@ def genarg(spec):
                 return '-NaN' if math.copysign(1.0, x) < 0 else 'NaN'
             if math.isinf(x):
                 return 'Infinity' if x > 0 else '-Infinity'
-            return str(x)
+            return x
         except ValueError:
             try:
                 x = float.fromhex(x)
@@ -141,20 +165,25 @@ def genarg(spec):
                     return '-NaN' if math.copysign(1.0, x) < 0 else 'NaN'
                 if math.isinf(x):
                     return 'Infinity' if x > 0 else '-Infinity'
-                return str(x)
+                return x
             except ValueError:
                 try:
                     x = int(x, 0)
-                    return str(x)
+                    return x
                 except ValueError:
                     return x
 
     x = gen()
-    if x.startswith('nan'):
-        return 'NaN'
-    if x.startswith('-nan'):
-        return '-NaN'
-    return x
+    if isinstance(x, str):
+        if x.startswith('nan'):
+            return 'NaN'
+        if x.startswith('-nan'):
+            return '-NaN'
+        return x
+    if spec['type'] == 'i32':
+        # cast back to i32 to get the correct sign
+        return str(struct.unpack('>i', struct.pack('>q', int(x))[4:])[0])
+    return str(x)
 
 
 all_names_in_main = {}
@@ -177,6 +206,9 @@ def genresult(ident, entry):
 
     if entry['kind'] == 'ignore':
         return f'module.invoke({ident}, {", ".join(genarg(x) for x in entry["function"]["args"])});\n    '
+
+    if entry['kind'] == 'testgen_fail':
+        return f'throw Exception("Test Generator Failure: " + {json.dumps(entry["reason"])});\n    '
 
     return f'throw Exception("(Test Generator) Unknown test kind {entry["kind"]}");\n    '
 
@@ -202,10 +234,7 @@ def gentest(entry, main_name):
 
 def gen_parse_module(name):
     return (
-        f'let content;\n    '
-        f'try {{\n        '
-        f'content = readBinaryWasmFile("Fixtures/SpecTests/{name}.wasm");\n    '
-        f'}} catch {{ read_okay = false; }}\n    '
+        f'let content = readBinaryWasmFile("Fixtures/SpecTests/{name}.wasm");\n    '
         f'const module = parseWebAssemblyModule(content)\n    '
     )
 
@@ -222,18 +251,16 @@ def main():
         with NamedTemporaryFile("w+") as temp:
             temp.write(description["module"])
             temp.flush()
-            rc = call(["wasm-as", "-n", temp.name, "-o", outpath])
+            rc = call(["wasm-as", "-n", "-all", temp.name, "-o", outpath])
             if rc != 0:
                 print("Failed to compile", name, "module index", index, "skipping that test", file=stderr)
                 continue
 
         sep = ""
-        print(f'''{{
-let readOkay = true;
+        print(f'''describe({json.dumps(testname)}, () => {{
 {gen_parse_module(testname)}
-if (readOkay) {{
 {sep.join(gentest(x, testname) for x in description["tests"])}
-}}}}
+}});
 ''')
 
 

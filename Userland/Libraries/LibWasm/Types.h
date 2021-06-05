@@ -56,7 +56,7 @@ TYPEDEF_DISTINCT_ORDERED_ID(size_t, LabelIndex);
 TYPEDEF_DISTINCT_ORDERED_ID(size_t, DataIndex);
 TYPEDEF_DISTINCT_NUMERIC_GENERAL(u64, true, true, false, true, false, true, InstructionPointer);
 
-ParseError with_eof_check(const InputStream& stream, ParseError error_if_not_eof);
+ParseError with_eof_check(InputStream const& stream, ParseError error_if_not_eof);
 
 template<typename T>
 struct GenericIndexParser {
@@ -170,6 +170,8 @@ public:
         F64,
         FunctionReference,
         ExternReference,
+        NullFunctionReference,
+        NullExternReference,
     };
 
     explicit ValueType(Kind kind)
@@ -177,7 +179,7 @@ public:
     {
     }
 
-    auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference; }
+    auto is_reference() const { return m_kind == ExternReference || m_kind == FunctionReference || m_kind == NullExternReference || m_kind == NullFunctionReference; }
     auto is_numeric() const { return !is_reference(); }
     auto kind() const { return m_kind; }
 
@@ -198,6 +200,10 @@ public:
             return "funcref";
         case ExternReference:
             return "externref";
+        case NullFunctionReference:
+            return "ref.null externref";
+        case NullExternReference:
+            return "ref.null funcref";
         }
         VERIFY_NOT_REACHED();
     }
@@ -214,7 +220,7 @@ public:
     {
     }
 
-    const auto& types() const { return m_types; }
+    auto const& types() const { return m_types; }
 
     static ParseResult<ResultType> parse(InputStream& stream);
 
@@ -493,7 +499,7 @@ class ImportSection {
 public:
     class Import {
     public:
-        using ImportDesc = Variant<TypeIndex, TableType, MemoryType, GlobalType>;
+        using ImportDesc = Variant<TypeIndex, TableType, MemoryType, GlobalType, FunctionType>;
         Import(String module, String name, ImportDesc description)
             : m_module(move(module))
             , m_name(move(name))
@@ -757,13 +763,12 @@ public:
         // FIXME: Implement me!
         static ParseResult<SegmentType0> parse(InputStream& stream);
 
-        ValueType type;
         Vector<FunctionIndex> function_indices;
         Active mode;
     };
     struct SegmentType1 {
         static ParseResult<SegmentType1> parse(InputStream& stream);
-        ValueType type;
+
         Vector<FunctionIndex> function_indices;
     };
     struct SegmentType2 {
@@ -791,23 +796,17 @@ public:
         static ParseResult<SegmentType7> parse(InputStream& stream);
     };
 
-    using AnyElementType = Variant<
-        SegmentType0,
-        SegmentType1,
-        SegmentType2,
-        SegmentType3,
-        SegmentType4,
-        SegmentType5,
-        SegmentType6,
-        SegmentType7>;
-
     struct Element {
-        static ParseResult<AnyElementType> parse(InputStream&);
+        static ParseResult<Element> parse(InputStream&);
+
+        ValueType type;
+        Vector<Expression> init;
+        Variant<Active, Passive, Declarative> mode;
     };
 
     static constexpr u8 section_id = 9;
 
-    explicit ElementSection(Vector<AnyElementType> segs)
+    explicit ElementSection(Vector<Element> segs)
         : m_segments(move(segs))
     {
     }
@@ -817,7 +816,7 @@ public:
     static ParseResult<ElementSection> parse(InputStream& stream);
 
 private:
-    Vector<AnyElementType> m_segments;
+    Vector<Element> m_segments;
 };
 
 class Locals {
@@ -1000,8 +999,8 @@ public:
     auto& functions() const { return m_functions; }
     auto& type(TypeIndex index) const
     {
-        const FunctionType* type = nullptr;
-        for_each_section_of_type<TypeSection>([&](const TypeSection& section) {
+        FunctionType const* type = nullptr;
+        for_each_section_of_type<TypeSection>([&](TypeSection const& section) {
             type = &section.types().at(index.value());
         });
 

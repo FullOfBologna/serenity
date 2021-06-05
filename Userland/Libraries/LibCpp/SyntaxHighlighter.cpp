@@ -13,7 +13,7 @@
 
 namespace Cpp {
 
-static Syntax::TextStyle style_for_token_type(const Gfx::Palette& palette, Cpp::Token::Type type)
+static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Cpp::Token::Type type)
 {
     switch (type) {
     case Cpp::Token::Type::Keyword:
@@ -55,7 +55,7 @@ bool SyntaxHighlighter::is_navigatable(void* token) const
     return cpp_token == Cpp::Token::Type::IncludePath;
 }
 
-void SyntaxHighlighter::rehighlight(const Palette& palette)
+void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
     Cpp::Lexer lexer(text);
@@ -63,10 +63,11 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
 
     Vector<GUI::TextDocumentSpan> spans;
     for (auto& token : tokens) {
-        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column);
+        // FIXME: The +1 for the token end column is a quick hack due to not wanting to modify the lexer (which is also used by the parser). Maybe there's a better way to do this.
+        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column + 1);
         GUI::TextDocumentSpan span;
         span.range.set_start({ token.start().line, token.start().column });
-        span.range.set_end({ token.end().line, token.end().column });
+        span.range.set_end({ token.end().line, token.end().column + 1 });
         auto style = style_for_token_type(palette, token.type());
         span.attributes.color = style.color;
         span.attributes.bold = style.bold;

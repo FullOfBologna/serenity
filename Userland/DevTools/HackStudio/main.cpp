@@ -10,18 +10,12 @@
 #include "Project.h"
 #include <AK/StringBuilder.h>
 #include <LibCore/ArgsParser.h>
-#include <LibCore/Event.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibGUI/Application.h>
 #include <LibGUI/Menubar.h>
-#include <LibGUI/MessageBox.h>
 #include <LibGUI/Notification.h>
-#include <LibGUI/Widget.h>
 #include <LibGUI/Window.h>
-#include <LibThreading/Lock.h>
-#include <LibThreading/Thread.h>
-#include <LibVT/TerminalWidget.h>
 #include <fcntl.h>
 #include <spawn.h>
 #include <stdio.h>
@@ -77,6 +71,7 @@ int main(int argc, char** argv)
     s_window->set_menubar(menubar);
 
     s_window->on_close_request = [&]() -> GUI::Window::CloseRequestDecision {
+        s_hack_studio_widget->locator().close();
         if (s_hack_studio_widget->warn_unsaved_changes("There are unsaved changes, do you want to save before exiting?") == HackStudioWidget::ContinueDecision::Yes)
             return GUI::Window::CloseRequestDecision::Close;
         return GUI::Window::CloseRequestDecision::StayOpen;

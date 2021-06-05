@@ -12,14 +12,17 @@
 #include <AK/JsonValue.h>
 #include <AK/StringBuilder.h>
 #include <LibGUI/Painter.h>
+#include <LibGfx/BMPLoader.h>
 #include <LibGfx/BMPWriter.h>
+#include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageDecoder.h>
+#include <LibGfx/PNGLoader.h>
 #include <LibGfx/PNGWriter.h>
 #include <stdio.h>
 
 namespace PixelPaint {
 
-RefPtr<Image> Image::create_with_size(const Gfx::IntSize& size)
+RefPtr<Image> Image::create_with_size(Gfx::IntSize const& size)
 {
     if (size.is_empty())
         return nullptr;
@@ -30,12 +33,12 @@ RefPtr<Image> Image::create_with_size(const Gfx::IntSize& size)
     return adopt_ref(*new Image(size));
 }
 
-Image::Image(const Gfx::IntSize& size)
+Image::Image(Gfx::IntSize const& size)
     : m_size(size)
 {
 }
 
-void Image::paint_into(GUI::Painter& painter, const Gfx::IntRect& dest_rect)
+void Image::paint_into(GUI::Painter& painter, Gfx::IntRect const& dest_rect)
 {
     float scale = (float)dest_rect.width() / (float)rect().width();
     Gfx::PainterStateSaver saver(painter);
@@ -49,7 +52,22 @@ void Image::paint_into(GUI::Painter& painter, const Gfx::IntRect& dest_rect)
     }
 }
 
-RefPtr<Image> Image::create_from_file(const String& file_path)
+RefPtr<Image> Image::create_from_bitmap(RefPtr<Gfx::Bitmap> bitmap)
+{
+    auto image = create_with_size({ bitmap->width(), bitmap->height() });
+    if (image.is_null())
+        return nullptr;
+
+    auto layer = Layer::create_with_bitmap(*image, *bitmap, "Background");
+    if (layer.is_null())
+        return nullptr;
+
+    image->add_layer(layer.release_nonnull());
+
+    return image;
+}
+
+RefPtr<Image> Image::create_from_pixel_paint_file(String const& file_path)
 {
     auto file = fopen(file_path.characters(), "r");
     fseek(file, 0L, SEEK_END);
@@ -87,7 +105,17 @@ RefPtr<Image> Image::create_from_file(const String& file_path)
     return image;
 }
 
-void Image::save(const String& file_path) const
+RefPtr<Image> Image::create_from_file(String const& file_path)
+{
+    auto bitmap = Gfx::Bitmap::load_from_file(file_path);
+    if (bitmap) {
+        return create_from_bitmap(bitmap);
+    }
+
+    return create_from_pixel_paint_file(file_path);
+}
+
+void Image::save(String const& file_path) const
 {
     // Build json file
     StringBuilder builder;
@@ -119,7 +147,7 @@ void Image::save(const String& file_path) const
     fclose(file);
 }
 
-void Image::export_bmp(const String& file_path)
+void Image::export_bmp(String const& file_path)
 {
     auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRx8888, m_size);
     GUI::Painter painter(*bitmap);
@@ -132,7 +160,7 @@ void Image::export_bmp(const String& file_path)
     fclose(file);
 }
 
-void Image::export_png(const String& file_path)
+void Image::export_png(String const& file_path)
 {
     auto bitmap = Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, m_size);
     VERIFY(bitmap);
@@ -166,7 +194,7 @@ RefPtr<Image> Image::take_snapshot() const
     return snapshot;
 }
 
-void Image::restore_snapshot(const Image& snapshot)
+void Image::restore_snapshot(Image const& snapshot)
 {
     m_layers.clear();
     select_layer(nullptr);
@@ -180,7 +208,7 @@ void Image::restore_snapshot(const Image& snapshot)
     did_modify_layer_stack();
 }
 
-size_t Image::index_of(const Layer& layer) const
+size_t Image::index_of(Layer const& layer) const
 {
     for (size_t i = 0; i < m_layers.size(); ++i) {
         if (&m_layers.at(i) == &layer)
@@ -280,7 +308,7 @@ void Image::remove_client(ImageClient& client)
     m_clients.remove(&client);
 }
 
-void Image::layer_did_modify_bitmap(Badge<Layer>, const Layer& layer)
+void Image::layer_did_modify_bitmap(Badge<Layer>, Layer const& layer)
 {
     auto layer_index = index_of(layer);
     for (auto* client : m_clients)
@@ -289,7 +317,7 @@ void Image::layer_did_modify_bitmap(Badge<Layer>, const Layer& layer)
     did_change();
 }
 
-void Image::layer_did_modify_properties(Badge<Layer>, const Layer& layer)
+void Image::layer_did_modify_properties(Badge<Layer>, Layer const& layer)
 {
     auto layer_index = index_of(layer);
     for (auto* client : m_clients)

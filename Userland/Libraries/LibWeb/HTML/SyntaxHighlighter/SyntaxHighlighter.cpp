@@ -1,9 +1,11 @@
 /*
  * Copyright (c) 2021, Ali Mohammad Pur <mpfard@serenityos.org>
+ * Copyright (c) 2021, Max Wipfli <mail@maxwipfli.ch>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Debug.h>
 #include <LibWeb/HTML/Parser/HTMLTokenizer.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
 
@@ -30,13 +32,19 @@ bool SyntaxHighlighter::is_navigatable(void*) const
     return false;
 }
 
-void SyntaxHighlighter::rehighlight(const Palette& palette)
+void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
+    dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) starting rehighlight");
     (void)palette;
     auto text = m_client->get_text();
 
     Vector<GUI::TextDocumentSpan> spans;
     auto highlight = [&](auto start_line, auto start_column, auto end_line, auto end_column, Gfx::TextAttributes attributes, AugmentedTokenKind kind) {
+        if (start_line > end_line || (start_line == end_line && start_column >= end_column)) {
+            dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) discarding ({}-{}) to ({}-{}) because it has zero or negative length", start_line, start_column, end_line, end_column);
+            return;
+        }
+        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) highlighting ({}-{}) to ({}-{}) with color {}", start_line, start_column, end_line, end_column, attributes.color);
         spans.empend(
             GUI::TextRange {
                 { start_line, start_column },
@@ -55,8 +63,9 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
     } state { State::HTML };
     for (;;) {
         auto token = tokenizer.next_token();
-        if (!token.has_value())
+        if (!token.has_value() || token.value().is_end_of_file())
             break;
+        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "(HTML::SyntaxHighlighter) got token of type {}", token->to_string());
 
         if (token->is_start_tag()) {
             if (token->tag_name() == "script"sv) {
@@ -83,17 +92,16 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
             highlight(
                 token->start_position().line,
                 token->start_position().column,
-                token->start_position().line,
-                token->start_position().column,
+                token->end_position().line,
+                token->end_position().column,
                 { palette.syntax_comment(), {} },
                 AugmentedTokenKind::Comment);
         } else if (token->is_start_tag() || token->is_end_tag()) {
-            // FIXME: This breaks with single-character tag names.
             highlight(
                 token->start_position().line,
                 token->start_position().column + token_start_offset,
                 token->start_position().line,
-                token->start_position().column + token->tag_name().length() + token_start_offset - 1,
+                token->start_position().column + token_start_offset + token->tag_name().length(),
                 { palette.syntax_keyword(), {}, false, true },
                 token->is_start_tag() ? AugmentedTokenKind::OpenTag : AugmentedTokenKind::CloseTag);
 
@@ -122,6 +130,13 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
                 { palette.syntax_preprocessor_statement(), {} },
                 AugmentedTokenKind::Doctype);
         }
+    }
+
+    if constexpr (SYNTAX_HIGHLIGHTING_DEBUG) {
+        dbgln("(HTML::SyntaxHighlighter) list of all spans:");
+        for (auto& span : spans)
+            dbgln("{}, {}", span.range, span.attributes.color);
+        dbgln("(HTML::SyntaxHighlighter) end of list");
     }
 
     m_client->do_set_spans(move(spans));

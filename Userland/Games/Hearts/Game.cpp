@@ -270,8 +270,12 @@ void Game::timer_event(Core::TimerEvent&)
         if (m_animation_current_step >= m_animation_steps) {
             stop_timer();
             m_animation_playing = false;
-            if (m_animation_did_finish)
-                (*m_animation_did_finish)();
+            if (m_animation_did_finish) {
+                // The did_finish handler might end up destroying/replacing the handler
+                // so we have to save it first.
+                OwnPtr<Function<void()>> animation_did_finish = move(m_animation_did_finish);
+                (*animation_did_finish)();
+            }
         }
         m_animation_current_step++;
     }
@@ -390,6 +394,19 @@ size_t Game::pick_card(Player& player)
         return !other_player_has_higher_value_card(player, card);
     };
     return player.pick_max_points_card(move(ignore_card));
+}
+
+size_t Game::pick_first_card_ltr(Player& player)
+{
+    for (size_t i = 0; i < player.hand.size(); i++) {
+        auto& card = player.hand[i];
+        if (card.is_null())
+            continue;
+        if (is_valid_play(player, *card)) {
+            return i;
+        }
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void Game::let_player_play_card()
@@ -567,6 +584,9 @@ void Game::keydown_event(GUI::KeyEvent& event)
             play_card(m_players[0], pick_card(m_players[0]));
         else if (m_state == State::PassingSelect)
             select_cards_for_passing();
+    } else if (event.key() == KeyCode::Key_Space) {
+        if (m_human_can_play && m_state == State::Play)
+            play_card(m_players[0], pick_first_card_ltr(m_players[0]));
     } else if (event.shift() && event.key() == KeyCode::Key_F11)
         dump_state();
 }

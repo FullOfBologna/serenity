@@ -73,11 +73,6 @@ FlyString::FlyString(StringView const& string)
     }
 }
 
-FlyString::FlyString(const char* string)
-    : FlyString(static_cast<String>(string))
-{
-}
-
 template<typename T>
 Optional<T> FlyString::to_int() const
 {
@@ -118,11 +113,6 @@ bool FlyString::ends_with(const StringView& str, CaseSensitivity case_sensitivit
 FlyString FlyString::to_lowercase() const
 {
     return String(*m_impl).to_lowercase();
-}
-
-StringView FlyString::view() const
-{
-    return { characters(), length() };
 }
 
 bool FlyString::operator==(const String& other) const

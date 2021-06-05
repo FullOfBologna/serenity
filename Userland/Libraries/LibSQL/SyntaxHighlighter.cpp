@@ -5,15 +5,13 @@
  */
 
 #include <AK/Debug.h>
-#include <LibGUI/TextEditor.h>
-#include <LibGfx/Font.h>
 #include <LibGfx/Palette.h>
 #include <LibSQL/Lexer.h>
 #include <LibSQL/SyntaxHighlighter.h>
 
 namespace SQL {
 
-static Syntax::TextStyle style_for_token_type(const Gfx::Palette& palette, TokenType type)
+static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, TokenType type)
 {
     switch (Token::category(type)) {
     case TokenCategory::Keyword:
@@ -41,7 +39,7 @@ bool SyntaxHighlighter::is_identifier(void* token) const
     return sql_token == SQL::TokenType::Identifier;
 }
 
-void SyntaxHighlighter::rehighlight(const Palette& palette)
+void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
 
@@ -49,13 +47,13 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
 
     Vector<GUI::TextDocumentSpan> spans;
 
-    auto append_token = [&](StringView str, const SQL::Token& token) {
+    auto append_token = [&](StringView str, SQL::Token const& token) {
         if (str.is_empty())
             return;
 
         GUI::TextPosition position { token.line_number() - 1, token.line_column() - 1 };
-        for (size_t i = 0; i < str.length() - 1; ++i) {
-            if (str[i] == '\n') {
+        for (char c : str) {
+            if (c == '\n') {
                 position.set_line(position.line() + 1);
                 position.set_column(0);
             } else
@@ -78,12 +76,11 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
             span.range.end().line(), span.range.end().column());
     };
 
-    bool was_eof = false;
-    for (auto token = lexer.next(); !was_eof; token = lexer.next()) {
+    for (;;) {
+        auto token = lexer.next();
         append_token(token.value(), token);
-
         if (token.type() == SQL::TokenType::Eof)
-            was_eof = true;
+            break;
     }
 
     m_client->do_set_spans(move(spans));

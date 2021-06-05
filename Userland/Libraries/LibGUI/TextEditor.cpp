@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
@@ -25,7 +26,6 @@
 #include <LibGfx/FontDatabase.h>
 #include <LibGfx/Palette.h>
 #include <LibSyntax/Highlighter.h>
-#include <ctype.h>
 #include <fcntl.h>
 #include <math.h>
 #include <stdio.h>
@@ -497,7 +497,9 @@ void TextEditor::paint_event(PaintEvent& event)
                 Gfx::IntRect span_rect = { visual_line_rect.location(), { 0, line_height() } };
 
                 auto draw_text_helper = [&](size_t start, size_t end, RefPtr<Gfx::Font>& font, Color& color, Optional<Color> background_color = {}, bool underline = false) {
-                    size_t length = end - start + 1;
+                    size_t length = end - start;
+                    if (length == 0)
+                        return;
                     auto text = visual_line_text.substring_view(start, length);
                     span_rect.set_width(font->width(text));
                     if (background_color.has_value()) {
@@ -519,7 +521,7 @@ void TextEditor::paint_event(PaintEvent& event)
                         continue;
                     }
                     if (span.range.end().line() < line_index) {
-                        dbgln("spans not sorted (span end {}:{} is before current line {}) => ignoring", span.range.end().line(), span.range.end().column(), line_index);
+                        dbgln_if(TEXTEDITOR_DEBUG, "spans not sorted (span end {}:{} is before current line {}) => ignoring", span.range.end().line(), span.range.end().column(), line_index);
                         ++span_index;
                         continue;
                     }
@@ -529,16 +531,12 @@ void TextEditor::paint_event(PaintEvent& event)
                         break;
                     }
                     if (span.range.start().line() == span.range.end().line() && span.range.end().column() < span.range.start().column()) {
-                        if (span.range.end().column() == span.range.start().column() - 1) {
-                            // span length is zero, just ignore
-                        } else {
-                            dbgln("span form {}:{} to {}:{} has negative length => ignoring", span.range.start().line(), span.range.start().column(), span.range.end().line(), span.range.end().column());
-                        }
+                        dbgln_if(TEXTEDITOR_DEBUG, "span form {}:{} to {}:{} has negative length => ignoring", span.range.start().line(), span.range.start().column(), span.range.end().line(), span.range.end().column());
                         ++span_index;
                         continue;
                     }
                     if (span.range.end().line() == line_index && span.range.end().column() < start_of_visual_line + next_column) {
-                        dbgln("spans not sorted (span end {}:{} is before current position {}:{}) => ignoring",
+                        dbgln_if(TEXTEDITOR_DEBUG, "spans not sorted (span end {}:{} is before current position {}:{}) => ignoring",
                             span.range.end().line(), span.range.end().column(), line_index, start_of_visual_line + next_column);
                         ++span_index;
                         continue;
@@ -550,27 +548,23 @@ void TextEditor::paint_event(PaintEvent& event)
                         span_start = span.range.start().column() - start_of_visual_line;
                     }
                     if (span_start < next_column) {
-                        dbgln("span started before the current position, maybe two spans overlap? (span start {} is before current position {}) => ignoring", span_start, next_column);
+                        dbgln_if(TEXTEDITOR_DEBUG, "span started before the current position, maybe two spans overlap? (span start {} is before current position {}) => ignoring", span_start, next_column);
                         ++span_index;
                         continue;
                     }
                     size_t span_end;
                     bool span_consumned;
-                    if (span.range.end().line() > line_index || span.range.end().column() >= start_of_visual_line + visual_line_text.length()) {
-                        if (visual_line_text.length() == 0) {
-                            // subtracting 1 would wrap around
-                            // since there is nothing to draw here just move on
-                            break;
-                        }
-                        span_end = visual_line_text.length() - 1;
+                    if (span.range.end().line() > line_index || span.range.end().column() > start_of_visual_line + visual_line_text.length()) {
+                        span_end = visual_line_text.length();
                         span_consumned = false;
                     } else {
                         span_end = span.range.end().column() - start_of_visual_line;
                         span_consumned = true;
                     }
+
                     if (span_start != next_column) {
                         // draw unspanned text between spans
-                        draw_text_helper(next_column, span_start - 1, unspanned_font, unspanned_color);
+                        draw_text_helper(next_column, span_start, unspanned_font, unspanned_color);
                     }
                     auto font = unspanned_font;
                     if (span.attributes.bold) {
@@ -578,7 +572,7 @@ void TextEditor::paint_event(PaintEvent& event)
                             font = bold_font;
                     }
                     draw_text_helper(span_start, span_end, font, span.attributes.color, span.attributes.background_color, span.attributes.underline);
-                    next_column = span_end + 1;
+                    next_column = span_end;
                     if (!span_consumned) {
                         // continue with same span on next line
                         break;
@@ -588,7 +582,7 @@ void TextEditor::paint_event(PaintEvent& event)
                 }
                 // draw unspanned text after last span
                 if (next_column < visual_line_text.length()) {
-                    draw_text_helper(next_column, visual_line_text.length() - 1, unspanned_font, unspanned_color);
+                    draw_text_helper(next_column, visual_line_text.length(), unspanned_font, unspanned_color);
                 }
                 // consume all spans that should end this line
                 // this is necessary since the spans can include the new line character
@@ -730,6 +724,12 @@ void TextEditor::keydown_event(KeyEvent& event)
     if (is_single_line()) {
         if (event.key() == KeyCode::Key_Tab)
             return AbstractScrollableWidget::keydown_event(event);
+
+        if (event.modifiers() == KeyModifier::Mod_Shift && event.key() == KeyCode::Key_Return) {
+            if (on_shift_return_pressed)
+                on_shift_return_pressed();
+            return;
+        }
 
         if (event.key() == KeyCode::Key_Return) {
             if (on_return_pressed)
@@ -1226,12 +1226,12 @@ size_t TextEditor::number_of_selected_words() const
     bool in_word = false;
     auto selected_text = this->selected_text();
     for (char c : selected_text) {
-        if (in_word && isspace(c)) {
+        if (in_word && is_ascii_space(c)) {
             in_word = false;
             word_count++;
             continue;
         }
-        if (!in_word && !isspace(c))
+        if (!in_word && !is_ascii_space(c))
             in_word = true;
     }
     if (in_word)
@@ -1291,7 +1291,7 @@ void TextEditor::cut()
     if (!is_editable())
         return;
     auto selected_text = this->selected_text();
-    dbgln("Cut: \"{}\"", selected_text);
+    dbgln_if(TEXTEDITOR_DEBUG, "Cut: \"{}\"", selected_text);
     Clipboard::the().set_plain_text(selected_text);
     delete_selection();
 }
@@ -1299,7 +1299,7 @@ void TextEditor::cut()
 void TextEditor::copy()
 {
     auto selected_text = this->selected_text();
-    dbgln("Copy: \"{}\"\n", selected_text);
+    dbgln_if(TEXTEDITOR_DEBUG, "Copy: \"{}\"\n", selected_text);
     Clipboard::the().set_plain_text(selected_text);
 }
 
@@ -1313,7 +1313,7 @@ void TextEditor::paste()
     if (paste_text.is_empty())
         return;
 
-    dbgln("Paste: \"{}\"", String::copy(paste_text));
+    dbgln_if(TEXTEDITOR_DEBUG, "Paste: \"{}\"", String::copy(paste_text));
 
     TemporaryChange change(m_automatic_indentation_enabled, false);
     insert_at_cursor_or_replace_selection(paste_text);
@@ -1555,7 +1555,7 @@ void TextEditor::recompute_visual_lines(size_t line_index)
         auto glyph_spacing = font().glyph_spacing();
         for (size_t i = 0; i < line.length(); ++i) {
             auto code_point = line.code_points()[i];
-            if (isspace(code_point)) {
+            if (is_ascii_space(code_point)) {
                 last_whitespace_index = i;
                 line_width_since_last_whitespace = 0;
             }

@@ -363,6 +363,10 @@ Messages::WindowServer::SetWindowRectResponse ClientConnection::set_window_rect(
         dbgln("ClientConnection: Ignoring SetWindowRect request for fullscreen window");
         return nullptr;
     }
+    if (rect.width() > INT16_MAX || rect.height() > INT16_MAX) {
+        did_misbehave(String::formatted("SetWindowRect: Bad window sizing(width={}, height={}), dimension exceeds INT16_MAX", rect.width(), rect.height()).characters());
+        return nullptr;
+    }
 
     if (rect.location() != window.rect().location()) {
         window.set_default_positioned(false);
@@ -461,6 +465,11 @@ Messages::WindowServer::CreateWindowResponse ClientConnection::create_window(Gfx
         }
     }
 
+    if (type < 0 || type >= (i32)WindowType::_Count) {
+        did_misbehave("CreateWindow with a bad type");
+        return nullptr;
+    }
+
     int window_id = m_next_window_id++;
     auto window = Window::construct(*this, (WindowType)type, window_id, modal, minimizable, frameless, resizable, fullscreen, accessory, parent_window);
 
@@ -488,7 +497,8 @@ Messages::WindowServer::CreateWindowResponse ClientConnection::create_window(Gfx
     window->set_alpha_hit_threshold(alpha_hit_threshold);
     window->set_size_increment(size_increment);
     window->set_base_size(base_size);
-    window->set_resize_aspect_ratio(resize_aspect_ratio);
+    if (resize_aspect_ratio.has_value() && !resize_aspect_ratio.value().is_null())
+        window->set_resize_aspect_ratio(resize_aspect_ratio);
     window->invalidate(true, true);
     if (window->type() == WindowType::Applet)
         AppletManager::the().add_applet(*window);

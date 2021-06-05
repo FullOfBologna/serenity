@@ -654,11 +654,15 @@ void Window::set_focused_widget(Widget* widget, FocusSource source)
     WeakPtr<Widget> previously_focused_widget = m_focused_widget;
     m_focused_widget = widget;
 
+    if (!m_focused_widget && m_previously_focused_widget)
+        m_focused_widget = m_previously_focused_widget;
+
     if (previously_focused_widget) {
         Core::EventLoop::current().post_event(*previously_focused_widget, make<FocusEvent>(Event::FocusOut, source));
         previously_focused_widget->update();
         if (previously_focused_widget && previously_focused_widget->on_focus_change)
             previously_focused_widget->on_focus_change(previously_focused_widget->is_focused(), source);
+        m_previously_focused_widget = previously_focused_widget;
     }
     if (m_focused_widget) {
         Core::EventLoop::current().post_event(*m_focused_widget, make<FocusEvent>(Event::FocusIn, source));
@@ -784,8 +788,11 @@ OwnPtr<WindowBackingStore> Window::create_backing_store(const Gfx::IntSize& size
 
     // FIXME: Plumb scale factor here eventually.
     auto bitmap = Gfx::Bitmap::create_with_anonymous_buffer(format, buffer, size, 1, {});
-    if (!bitmap)
+    if (!bitmap) {
+        VERIFY(size.width() <= INT16_MAX);
+        VERIFY(size.height() <= INT16_MAX);
         return {};
+    }
     return make<WindowBackingStore>(bitmap.release_nonnull());
 }
 
