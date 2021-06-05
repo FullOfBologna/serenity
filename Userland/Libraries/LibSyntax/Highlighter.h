@@ -23,6 +23,7 @@ enum class Language {
     PlainText,
     SQL,
     Shell,
+    Python
 };
 
 struct TextStyle {

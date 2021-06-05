@@ -110,7 +110,7 @@ private:
     RefPtr<GUI::Action> m_soft_tab_8_width_action;
     RefPtr<GUI::Action> m_soft_tab_16_width_action;
 
-    GUI::ActionGroup syntax_actions;
+    GUI::ActionGroup m_syntax_actions;
     RefPtr<GUI::Action> m_plain_text_highlight;
     RefPtr<GUI::Action> m_cpp_highlight;
     RefPtr<GUI::Action> m_js_highlight;
@@ -119,6 +119,7 @@ private:
     RefPtr<GUI::Action> m_ini_highlight;
     RefPtr<GUI::Action> m_shell_highlight;
     RefPtr<GUI::Action> m_sql_highlight;
+    RefPtr<GUI::Action> m_py_highlight;
 
     RefPtr<Web::OutOfProcessWebView> m_page_view;
     RefPtr<Core::ConfigFile> m_config;

@@ -37,6 +37,7 @@
 #include <LibGfx/Font.h>
 #include <LibGfx/Painter.h>
 #include <LibJS/SyntaxHighlighter.h>
+#include <LibPy/SyntaxHighlighter.h>
 #include <LibMarkdown/Document.h>
 #include <LibSQL/SyntaxHighlighter.h>
 #include <LibWeb/HTML/SyntaxHighlighter/SyntaxHighlighter.h>
@@ -436,6 +437,7 @@ void MainWidget::initialize_menubar(GUI::Menubar& menubar)
 
     auto& view_menu = menubar.add_menu("&View");
     auto& layout_menu = view_menu.add_submenu("&Layout");
+    
     layout_menu.add_action(*m_layout_toolbar_action);
     layout_menu.add_action(*m_layout_statusbar_action);
     layout_menu.add_action(*m_layout_ruler_action);
@@ -530,7 +532,7 @@ void MainWidget::initialize_menubar(GUI::Menubar& menubar)
     m_no_preview_action->set_checked(true);
     view_menu.add_separator();
 
-    syntax_actions.set_exclusive(true);
+    m_syntax_actions.set_exclusive(true);
 
     auto& syntax_menu = view_menu.add_submenu("&Syntax");
     m_plain_text_highlight = GUI::Action::create_checkable("&Plain Text", [&](auto&) {
@@ -538,57 +540,64 @@ void MainWidget::initialize_menubar(GUI::Menubar& menubar)
         m_editor->update();
     });
     m_plain_text_highlight->set_checked(true);
-    syntax_actions.add_action(*m_plain_text_highlight);
+    m_syntax_actions.add_action(*m_plain_text_highlight);
     syntax_menu.add_action(*m_plain_text_highlight);
 
     m_cpp_highlight = GUI::Action::create_checkable("&C++", [&](auto&) {
         m_editor->set_syntax_highlighter(make<Cpp::SyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_cpp_highlight);
+    m_syntax_actions.add_action(*m_cpp_highlight);
     syntax_menu.add_action(*m_cpp_highlight);
 
     m_js_highlight = GUI::Action::create_checkable("&JavaScript", [&](auto&) {
         m_editor->set_syntax_highlighter(make<JS::SyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_js_highlight);
+    m_syntax_actions.add_action(*m_js_highlight);
     syntax_menu.add_action(*m_js_highlight);
 
     m_html_highlight = GUI::Action::create_checkable("&HTML File", [&](auto&) {
         m_editor->set_syntax_highlighter(make<Web::HTML::SyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_html_highlight);
+    m_syntax_actions.add_action(*m_html_highlight);
     syntax_menu.add_action(*m_html_highlight);
 
     m_gml_highlight = GUI::Action::create_checkable("&GML", [&](auto&) {
         m_editor->set_syntax_highlighter(make<GUI::GMLSyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_gml_highlight);
+    m_syntax_actions.add_action(*m_gml_highlight);
     syntax_menu.add_action(*m_gml_highlight);
 
     m_ini_highlight = GUI::Action::create_checkable("&INI File", [&](auto&) {
         m_editor->set_syntax_highlighter(make<GUI::IniSyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_ini_highlight);
+    m_syntax_actions.add_action(*m_ini_highlight);
     syntax_menu.add_action(*m_ini_highlight);
 
     m_shell_highlight = GUI::Action::create_checkable("&Shell File", [&](auto&) {
         m_editor->set_syntax_highlighter(make<Shell::SyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_shell_highlight);
+    m_syntax_actions.add_action(*m_shell_highlight);
     syntax_menu.add_action(*m_shell_highlight);
 
     m_sql_highlight = GUI::Action::create_checkable("S&QL File", [&](auto&) {
         m_editor->set_syntax_highlighter(make<SQL::SyntaxHighlighter>());
         m_editor->update();
     });
-    syntax_actions.add_action(*m_sql_highlight);
+    m_syntax_actions.add_action(*m_sql_highlight);
     syntax_menu.add_action(*m_sql_highlight);
+
+    m_py_highlight = GUI::Action::create_checkable("&Python", [&](auto&) {
+        m_editor->set_syntax_highlighter(make<Py::SyntaxHighlighter>());
+        m_editor->update();
+    });
+    m_syntax_actions.add_action(*m_py_highlight);
+    syntax_menu.add_action(*m_py_highlight);
 
     auto& help_menu = menubar.add_menu("&Help");
     help_menu.add_action(GUI::CommonActions::make_help_action([](auto&) {
@@ -615,6 +624,8 @@ void MainWidget::set_path(const LexicalPath& lexical_path)
         m_sql_highlight->activate();
     } else if (m_extension == "html") {
         m_html_highlight->activate();
+    } else if (m_extension == "py") {
+        m_py_highlight->activate();
     } else {
         m_plain_text_highlight->activate();
     }
