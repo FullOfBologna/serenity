@@ -49,142 +49,43 @@ static bool is_valid_nonfirst_character_of_identifier(char ch)
 }
 
 constexpr const char* s_known_keywords[] = {
-    "alignas",
-    "alignof",
     "and",
-    "and_eq",
-    "asm",
-    "bitand",
-    "bitor",
-    "bool",
+    "as",   
+    "assert",
     "break",
-    "case",
-    "catch",
     "class",
-    "compl",
-    "const",
-    "const_cast",
-    "constexpr",
     "continue",
-    "decltype",
-    "default",
-    "delete",
-    "do",
-    "dynamic_cast",
+    "def",
+    "del",
+    "elif",
     "else",
-    "enum",
-    "explicit",
-    "export",
-    "extern",
-    "false",
-    "final",
+    "except",
+    "finally",
     "for",
-    "friend",
-    "goto",
+    "from",
+    "global",
     "if",
-    "inline",
-    "mutable",
-    "namespace",
-    "new",
-    "noexcept",
+    "import",
+    "in",
+    "is",
+    "lambda",
+    "None",
+    "nonlocal",
     "not",
-    "not_eq",
-    "nullptr",
-    "operator",
     "or",
-    "or_eq",
-    "override",
-    "private",
-    "protected",
-    "public",
-    "register",
-    "reinterpret_cast",
+    "pass",
+    "raise",
     "return",
-    "signed",
-    "sizeof",
-    "static",
-    "static_assert",
-    "static_cast",
-    "struct",
-    "switch",
-    "template",
-    "this",
-    "thread_local",
-    "throw",
-    "true",
+    "True",
     "try",
-    "typedef",
-    "typeid",
-    "typename",
-    "union",
-    "using",
-    "virtual",
-    "volatile",
     "while",
-    "xor",
-    "xor_eq"
+    "with",
+    "yield"
 };
 
-constexpr const char* s_known_types[] = {
-    "ByteBuffer",
-    "CircularDeque",
-    "CircularQueue",
-    "Deque",
-    "DoublyLinkedList",
-    "FileSystemPath",
-    "Array",
-    "Function",
-    "HashMap",
-    "HashTable",
-    "IPv4Address",
-    "InlineLinkedList",
-    "IntrusiveList",
-    "JsonArray",
-    "JsonObject",
-    "JsonValue",
-    "MappedFile",
-    "NetworkOrdered",
-    "NonnullOwnPtr",
-    "NonnullOwnPtrVector",
-    "NonnullRefPtr",
-    "NonnullRefPtrVector",
-    "Optional",
-    "OwnPtr",
-    "RefPtr",
-    "Result",
-    "ScopeGuard",
-    "SinglyLinkedList",
-    "String",
-    "StringBuilder",
-    "StringImpl",
-    "StringView",
-    "Utf8View",
-    "Vector",
-    "WeakPtr",
-    "auto",
-    "char",
-    "char16_t",
-    "char32_t",
-    "char8_t",
-    "double",
-    "float",
-    "i16",
-    "i32",
-    "i64",
-    "i8",
-    "int",
-    "int",
-    "long",
-    "short",
-    "signed",
-    "u16",
-    "u32",
-    "u64",
-    "u8",
-    "unsigned",
-    "void",
-    "wchar_t"
-};
+// constexpr const char* s_known_types[] = {
+
+// };
 
 static bool is_keyword(const StringView& string)
 {
@@ -195,14 +96,14 @@ static bool is_keyword(const StringView& string)
     return keywords.contains(string);
 }
 
-static bool is_known_type(const StringView& string)
-{
-    static HashTable<String> types(array_size(s_known_types));
-    if (types.is_empty()) {
-        types.set_from(s_known_types);
-    }
-    return types.contains(string);
-}
+// static bool is_known_type(const StringView& string)
+// {
+//     static HashTable<String> types(array_size(s_known_types));
+//     if (types.is_empty()) {
+//         types.set_from(s_known_types);
+//     }
+//     return types.contains(string);
+// }
 
 Vector<Token> Lexer::lex()
 {
@@ -731,8 +632,8 @@ Vector<Token> Lexer::lex()
             auto token_view = StringView(m_input.characters_without_null_termination() + token_start_index, m_index - token_start_index);
             if (is_keyword(token_view))
                 commit_token(Token::Type::Keyword);
-            else if (is_known_type(token_view))
-                commit_token(Token::Type::KnownType);
+            // else if (is_known_type(token_view))
+            //     commit_token(Token::Type::KnownType);
             else
                 commit_token(Token::Type::Identifier);
             continue;

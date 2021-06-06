@@ -44,14 +44,14 @@ static Syntax::TextStyle style_for_token_type(const Gfx::Palette& palette, Py::T
 
 bool SyntaxHighlighter::is_identifier(void* token) const
 {
-    auto cpp_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
-    return cpp_token == Py::Token::Type::Identifier;
+    auto py_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
+    return py_token == Py::Token::Type::Identifier;
 }
 
 bool SyntaxHighlighter::is_navigatable(void* token) const
 {
-    auto cpp_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
-    return cpp_token == Py::Token::Type::ImportModule;
+    auto py_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
+    return py_token == Py::Token::Type::ImportModule;
 }
 
 void SyntaxHighlighter::rehighlight(const Palette& palette)

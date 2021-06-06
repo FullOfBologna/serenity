@@ -10,6 +10,8 @@
 #include <AK/Types.h>
 
 namespace Py {
+    
+//TODO - Spawned from LibCPP so still needs to be made Python specific
 
 #define FOR_EACH_TOKEN_TYPE        \
     __TOKEN(Unknown)               \

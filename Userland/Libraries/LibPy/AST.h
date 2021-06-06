@@ -112,8 +112,6 @@ public:
     virtual bool is_declaration() const override { return true; }
     virtual bool is_variable_declaration() const { return false; }
     virtual bool is_parameter() const { return false; }
-    virtual bool is_struct_or_class() const { return false; }
-    virtual bool is_struct() const { return false; }
     virtual bool is_class() const { return false; }
     virtual bool is_function() const { return false; }
     virtual bool is_namespace() const { return false; }
@@ -527,8 +525,8 @@ public:
     virtual ~StructOrClassDeclaration() override = default;
     virtual const char* class_name() const override { return "StructOrClassDeclaration"; }
     virtual void dump(FILE* = stdout, size_t indent = 0) const override;
-    virtual bool is_struct_or_class() const override { return true; }
-    virtual bool is_struct() const override { return m_type == Type::Struct; }
+    // virtual bool is_struct_or_class() const override { return true; }
+    // virtual bool is_struct() const override { return m_type == Type::Struct; }
     virtual bool is_class() const override { return m_type == Type::Class; }
     virtual NonnullRefPtrVector<Declaration> declarations() const override;
 
