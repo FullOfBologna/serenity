@@ -62,10 +62,10 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
 
     Vector<GUI::TextDocumentSpan> spans;
     for (auto& token : tokens) {
-        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column);
+        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column + 1);
         GUI::TextDocumentSpan span;
         span.range.set_start({ token.start().line, token.start().column });
-        span.range.set_end({ token.end().line, token.end().column });
+        span.range.set_end({ token.end().line, token.end().column + 1  });
         auto style = style_for_token_type(palette, token.type());
         span.attributes.color = style.color;
         span.attributes.bold = style.bold;
