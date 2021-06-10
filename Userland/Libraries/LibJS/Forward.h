@@ -37,8 +37,10 @@
     __JS_ENUMERATE(Object, object, ObjectPrototype, ObjectConstructor, void)                      \
     __JS_ENUMERATE(Promise, promise, PromisePrototype, PromiseConstructor, void)                  \
     __JS_ENUMERATE(RegExpObject, regexp, RegExpPrototype, RegExpConstructor, void)                \
+    __JS_ENUMERATE(Set, set, SetPrototype, SetConstructor, void)                                  \
     __JS_ENUMERATE(StringObject, string, StringPrototype, StringConstructor, void)                \
-    __JS_ENUMERATE(SymbolObject, symbol, SymbolPrototype, SymbolConstructor, void)
+    __JS_ENUMERATE(SymbolObject, symbol, SymbolPrototype, SymbolConstructor, void)                \
+    __JS_ENUMERATE(WeakSet, weak_set, WeakSetPrototype, WeakSetConstructor, void)
 
 #define JS_ENUMERATE_NATIVE_OBJECTS                 \
     JS_ENUMERATE_NATIVE_OBJECTS_EXCLUDING_TEMPLATES \
@@ -68,6 +70,7 @@
 #define JS_ENUMERATE_ITERATOR_PROTOTYPES          \
     __JS_ENUMERATE(Iterator, iterator)            \
     __JS_ENUMERATE(ArrayIterator, array_iterator) \
+    __JS_ENUMERATE(SetIterator, set_iterator)     \
     __JS_ENUMERATE(StringIterator, string_iterator)
 
 #define JS_ENUMERATE_BUILTIN_TYPES \
@@ -108,6 +111,7 @@ class Cell;
 class Console;
 class DeferGC;
 class Error;
+class ErrorType;
 class Exception;
 class Expression;
 class Accessor;
@@ -130,6 +134,7 @@ class ScopeNode;
 class ScopeObject;
 class Shape;
 class Statement;
+class StringOrSymbol;
 class Symbol;
 class Token;
 class VM;
@@ -160,5 +165,14 @@ JS_ENUMERATE_TYPED_ARRAYS
 
 template<class T>
 class Handle;
+
+namespace Bytecode {
+class BasicBlock;
+struct Executable;
+class Generator;
+class Instruction;
+class Interpreter;
+class Register;
+}
 
 }

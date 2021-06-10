@@ -308,17 +308,6 @@ NonnullRefPtrVector<Declaration> StructOrClassDeclaration::declarations() const
     return declarations;
 }
 
-void MemberDeclaration::dump(FILE* output, size_t indent) const
-{
-    ASTNode::dump(output, indent);
-    m_type->dump(output, indent + 1);
-    print_indent(output, indent + 1);
-    outln(output, "{}", m_name);
-    if (m_initial_value) {
-        m_initial_value->dump(output, indent + 2);
-    }
-}
-
 void UnaryExpression::dump(FILE* output, size_t indent) const
 {
     ASTNode::dump(output, indent);
@@ -542,6 +531,38 @@ void CStyleCastExpression::dump(FILE* output, size_t indent) const
         m_type->dump(output, indent + 1);
     if (m_expression)
         m_expression->dump(output, indent + 1);
+}
+
+void Constructor::dump(FILE* output, size_t indent) const
+{
+    print_indent(output, indent);
+    outln(output, "C'tor");
+    print_indent(output, indent + 1);
+    outln(output, "(");
+    for (const auto& arg : m_parameters) {
+        arg.dump(output, indent + 1);
+    }
+    print_indent(output, indent + 1);
+    outln(output, ")");
+    if (!m_definition.is_null()) {
+        m_definition->dump(output, indent + 1);
+    }
+}
+
+void Destructor::dump(FILE* output, size_t indent) const
+{
+    print_indent(output, indent);
+    outln(output, "D'tor");
+    print_indent(output, indent + 1);
+    outln(output, "(");
+    for (const auto& arg : m_parameters) {
+        arg.dump(output, indent + 1);
+    }
+    print_indent(output, indent + 1);
+    outln(output, ")");
+    if (!m_definition.is_null()) {
+        m_definition->dump(output, indent + 1);
+    }
 }
 
 }

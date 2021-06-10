@@ -40,6 +40,7 @@ public:
     void set_fullscreen(bool);
 
     bool is_maximized() const;
+    void set_maximized(bool);
 
     bool is_frameless() const { return m_frameless; }
     void set_frameless(bool);
@@ -172,7 +173,7 @@ public:
     void apply_icon();
     const Gfx::Bitmap* icon() const { return m_icon.ptr(); }
 
-    Vector<Widget*> focusable_widgets(FocusSource) const;
+    Vector<Widget&> focusable_widgets(FocusSource) const;
 
     void schedule_relayout();
 

@@ -13,6 +13,7 @@
 #include <Kernel/Net/IPv4.h>
 #include <Kernel/Net/IPv4Socket.h>
 #include <Kernel/Net/NetworkAdapter.h>
+#include <Kernel/Net/NetworkingManagement.h>
 #include <Kernel/Net/Routing.h>
 #include <Kernel/Net/TCP.h>
 #include <Kernel/Net/TCPSocket.h>
@@ -170,7 +171,7 @@ bool IPv4Socket::can_read(const FileDescription&, size_t) const
 
 bool IPv4Socket::can_write(const FileDescription&, size_t) const
 {
-    return is_connected();
+    return true;
 }
 
 PortAllocationResult IPv4Socket::allocate_local_port_if_needed()
@@ -205,6 +206,9 @@ KResultOr<size_t> IPv4Socket::sendto(FileDescription&, const UserOrKernelBuffer&
         m_peer_address = IPv4Address((const u8*)&ia.sin_addr.s_addr);
         m_peer_port = ntohs(ia.sin_port);
     }
+
+    if (!is_connected() && m_peer_address.is_zero())
+        return EPIPE;
 
     auto routing_decision = route_to(m_peer_address, m_local_address, bound_interface());
     if (routing_decision.is_zero())
@@ -579,7 +583,7 @@ int IPv4Socket::ioctl(FileDescription&, unsigned request, FlatPtr arg)
         if (copied_ifname.is_null())
             return -EFAULT;
 
-        auto adapter = NetworkAdapter::lookup_by_name(copied_ifname);
+        auto adapter = NetworkingManagement::the().lookup_by_name(copied_ifname);
         if (!adapter)
             return -ENODEV;
 
@@ -612,7 +616,7 @@ int IPv4Socket::ioctl(FileDescription&, unsigned request, FlatPtr arg)
         memcpy(namebuf, ifr.ifr_name, IFNAMSIZ);
         namebuf[sizeof(namebuf) - 1] = '\0';
 
-        auto adapter = NetworkAdapter::lookup_by_name(namebuf);
+        auto adapter = NetworkingManagement::the().lookup_by_name(namebuf);
         if (!adapter)
             return -ENODEV;
 

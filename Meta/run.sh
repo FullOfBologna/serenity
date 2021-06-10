@@ -43,6 +43,10 @@ SERENITY_RUN="${SERENITY_RUN:-$1}"
     fi
 }
 
+SERENITY_QEMU_MIN_REQ_VERSION=5
+installed_major_version=$("$SERENITY_QEMU_BIN" -version | head -n 1 | grep -Po "(?<=QEMU emulator version )([1-9]\d*|0)")
+[ "$installed_major_version" -lt "$SERENITY_QEMU_MIN_REQ_VERSION" ] && die "Required QEMU >= 5.0! Found $($SERENITY_QEMU_BIN -version | head -n 1)"
+
 [ -z "$SERENITY_COMMON_QEMU_ARGS" ] && SERENITY_COMMON_QEMU_ARGS="
 $SERENITY_EXTRA_QEMU_ARGS
 -s -m $SERENITY_RAM_SIZE
@@ -105,7 +109,7 @@ elif [ "$SERENITY_RUN" = "qn" ]; then
     # Meta/run.sh qn: qemu without network
     "$SERENITY_QEMU_BIN" \
         $SERENITY_COMMON_QEMU_ARGS \
-        -device e1000 \
+        -device e1000e \
         -kernel Kernel/Kernel \
         -append "${SERENITY_KERNEL_CMDLINE}"
 elif [ "$SERENITY_RUN" = "qtap" ]; then
@@ -117,7 +121,7 @@ elif [ "$SERENITY_RUN" = "qtap" ]; then
         $SERENITY_VIRT_TECH_ARG \
         $SERENITY_PACKET_LOGGING_ARG \
         -netdev tap,ifname=tap0,id=br0 \
-        -device e1000,netdev=br0 \
+        -device e1000e,netdev=br0 \
         -kernel Kernel/Kernel \
         -append "${SERENITY_KERNEL_CMDLINE}"
     sudo ip tuntap del dev tap0 mode tap
@@ -128,7 +132,7 @@ elif [ "$SERENITY_RUN" = "qgrub" ]; then
         $SERENITY_VIRT_TECH_ARG \
         $SERENITY_PACKET_LOGGING_ARG \
         -netdev user,id=breh,hostfwd=tcp:127.0.0.1:8888-10.0.2.15:8888,hostfwd=tcp:127.0.0.1:8823-10.0.2.15:23 \
-        -device e1000,netdev=breh
+        -device e1000e,netdev=breh
 elif [ "$SERENITY_RUN" = "q35_cmd" ]; then
     # Meta/run.sh q35_cmd: qemu (q35 chipset) with SerenityOS with custom commandline
     shift
@@ -138,7 +142,7 @@ elif [ "$SERENITY_RUN" = "q35_cmd" ]; then
         $SERENITY_COMMON_QEMU_Q35_ARGS \
         $SERENITY_VIRT_TECH_ARG \
         -netdev user,id=breh,hostfwd=tcp:127.0.0.1:8888-10.0.2.15:8888,hostfwd=tcp:127.0.0.1:8823-10.0.2.15:23 \
-        -device e1000,netdev=breh \
+        -device e1000e,netdev=breh \
         -kernel Kernel/Kernel \
         -append "${SERENITY_KERNEL_CMDLINE}"
 elif [ "$SERENITY_RUN" = "qcmd" ]; then
@@ -150,7 +154,7 @@ elif [ "$SERENITY_RUN" = "qcmd" ]; then
         $SERENITY_COMMON_QEMU_ARGS \
         $SERENITY_VIRT_TECH_ARG \
         -netdev user,id=breh,hostfwd=tcp:127.0.0.1:8888-10.0.2.15:8888,hostfwd=tcp:127.0.0.1:8823-10.0.2.15:23 \
-        -device e1000,netdev=breh \
+        -device e1000e,netdev=breh \
         -kernel Kernel/Kernel \
         -append "${SERENITY_KERNEL_CMDLINE}"
 elif [ "$SERENITY_RUN" = "ci" ]; then
@@ -176,7 +180,7 @@ else
         $SERENITY_VIRT_TECH_ARG \
         $SERENITY_PACKET_LOGGING_ARG \
         -netdev user,id=breh,hostfwd=tcp:127.0.0.1:8888-10.0.2.15:8888,hostfwd=tcp:127.0.0.1:8823-10.0.2.15:23,hostfwd=tcp:127.0.0.1:8000-10.0.2.15:8000,hostfwd=tcp:127.0.0.1:2222-10.0.2.15:22 \
-        -device e1000,netdev=breh \
+        -device e1000e,netdev=breh \
         -kernel Kernel/Kernel \
         -append "${SERENITY_KERNEL_CMDLINE}"
 fi

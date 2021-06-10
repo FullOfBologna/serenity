@@ -5,6 +5,7 @@ Please make sure to keep this list up to date when adding and updating ports. :^
 | Port                                   | Name                                                       | Version                  | Website                                                                        |
 |----------------------------------------|------------------------------------------------------------|--------------------------|--------------------------------------------------------------------------------|
 | [`bash`](bash/)                        | GNU Bash                                                   | 5.0                      | https://www.gnu.org/software/bash/                                             |
+| [`bass`](bass/)                        | Beneath a Steel Sky                                        | cd-1.2                   | https://www.scummvm.org/games                                                  |
 | [`bc`](bc/)                            | bc                                                         | 2.5.1                    | https://github.com/gavinhoward/bc                                              |
 | [`binutils`](binutils/)                | GNU Binutils                                               | 2.36.1                   | https://www.gnu.org/software/binutils/                                         |
 | [`bison`](bison/)                      | GNU Bison                                                  | 1.25                     | https://www.gnu.org/software/bison/                                            |
@@ -112,6 +113,7 @@ Please make sure to keep this list up to date when adding and updating ports. :^
 | [`quake2`](quake2/)                    | QuakeII                                                    | 0.1                      | https://github.com/SerenityOS/SerenityQuakeII                                  |
 | [`readline`](readline/)                | GNU Readline Library                                       | 8.1                      | https://tiswww.case.edu/php/chet/readline/rltop.html                           |
 | [`rsync`](rsync/)                      | rsync                                                      | 3.1.3                    | https://rsync.samba.org/                                                       |
+| [`sam`](sam/)                          | Software Automatic Mouth (SAM)                             | c86ea39                  | https://github.com/vidarh/SAM                                                  |
 | [`scummvm`](scummvm/)                  | ScummVM                                                    | 2.2.0                    | https://www.scummvm.org/                                                       |
 | [`SDL2`](SDL2/)                        | Simple DirectMedia Layer (SDL2)                            |                          | https://github.com/SerenityOS/SDL                                              |
 | [`SDL2-GNUBoy`](SDL2-GNUBoy/)          | SDL2 GNUBoy                                                | 1.2                      | https://github.com/AlexOberhofer/SDL2-GNUBoy                                   |
@@ -121,7 +123,7 @@ Please make sure to keep this list up to date when adding and updating ports. :^
 | [`SDL2_ttf`](SDL2_ttf/)                | SDL2\_ttf (TrueType Font add-on for SDL2)                  | 2.0.15                   | https://www.libsdl.org/projects/SDL_ttf/                                       |
 | [`sed`](sed/)                          | GNU sed                                                    | 4.2.1                    | https://www.gnu.org/software/sed/                                              |
 | [`sl`](sl/)                            | Steam Locomotive (SL)                                      |                          | https://github.com/mtoyoda/sl                                                  |
-| [`sqlite`](sqlite/)                    | SQLite                                                     | 3350300                  | https://www.sqlite.org/                                                        |
+| [`sqlite`](sqlite/)                    | SQLite                                                     | 3350500                  | https://www.sqlite.org/                                                        |
 | [`stpuzzles`](stpuzzles/)              | Simon Tatham's Portable Puzzle Collection                  |                          | https://www.chiark.greenend.org.uk/~sgtatham/puzzles/                          |
 | [`stress-ng`](stress-ng/)              | stress-ng                                                  | 0.11.23                  | https://github.com/ColinIanKing/stress-ng                                      |
 | [`Super-Mario`](Super-Mario/)          | Super-Mario Clone                                          |                          | https://github.com/Bennyhwanggggg/Super-Mario-Clone-Cpp                        |
@@ -137,4 +139,5 @@ Please make sure to keep this list up to date when adding and updating ports. :^
 | [`xz`](xz/)                            | xz                                                         | 5.2.5                    | https://tukaani.org/xz/                                                        |
 | [`yasm`](yasm/)                        | Yasm Modular Assembler                                     | 1.3.0                    | https://yasm.tortall.net/                                                      |
 | [`zlib`](zlib/)                        | zlib                                                       | 1.2.11                   | https://www.zlib.net/                                                          |
+| [`zsh`](zsh/)                          | Z Shell (Zsh)                                              | 5.8                      | https://www.zsh.org                                                            |
 | [`zstd`](zstd/)                        | Zstandard                                                  | 1.4.4                    | https://facebook.github.io/zstd/                                               |

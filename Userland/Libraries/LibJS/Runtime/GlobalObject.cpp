@@ -47,6 +47,9 @@
 #include <LibJS/Runtime/ReflectObject.h>
 #include <LibJS/Runtime/RegExpConstructor.h>
 #include <LibJS/Runtime/RegExpPrototype.h>
+#include <LibJS/Runtime/SetConstructor.h>
+#include <LibJS/Runtime/SetIteratorPrototype.h>
+#include <LibJS/Runtime/SetPrototype.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/StringIteratorPrototype.h>
@@ -57,6 +60,8 @@
 #include <LibJS/Runtime/TypedArrayConstructor.h>
 #include <LibJS/Runtime/TypedArrayPrototype.h>
 #include <LibJS/Runtime/Value.h>
+#include <LibJS/Runtime/WeakSetConstructor.h>
+#include <LibJS/Runtime/WeakSetPrototype.h>
 
 namespace JS {
 
@@ -87,7 +92,7 @@ void GlobalObject::initialize_global_object()
     static_cast<FunctionPrototype*>(m_function_prototype)->initialize(*this);
     static_cast<ObjectPrototype*>(m_object_prototype)->initialize(*this);
 
-    set_prototype(m_object_prototype);
+    Object::set_prototype(m_object_prototype);
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, ArrayType) \
     if (!m_##snake_name##_prototype)                                                     \
@@ -106,12 +111,14 @@ void GlobalObject::initialize_global_object()
     define_native_function(vm.names.isNaN, is_nan, 1, attr);
     define_native_function(vm.names.isFinite, is_finite, 1, attr);
     define_native_function(vm.names.parseFloat, parse_float, 1, attr);
-    define_native_function(vm.names.parseInt, parse_int, 1, attr);
+    define_native_function(vm.names.parseInt, parse_int, 2, attr);
     define_native_function(vm.names.eval, eval, 1, attr);
     define_native_function(vm.names.encodeURI, encode_uri, 1, attr);
     define_native_function(vm.names.decodeURI, decode_uri, 1, attr);
     define_native_function(vm.names.encodeURIComponent, encode_uri_component, 1, attr);
     define_native_function(vm.names.decodeURIComponent, decode_uri_component, 1, attr);
+    define_native_function(vm.names.escape, escape, 1, attr);
+    define_native_function(vm.names.unescape, unescape, 1, attr);
 
     define_property(vm.names.NaN, js_nan(), 0);
     define_property(vm.names.Infinity, js_infinity(), 0);
@@ -135,8 +142,10 @@ void GlobalObject::initialize_global_object()
     add_constructor(vm.names.Promise, m_promise_constructor, m_promise_prototype);
     add_constructor(vm.names.Proxy, m_proxy_constructor, nullptr);
     add_constructor(vm.names.RegExp, m_regexp_constructor, m_regexp_prototype);
+    add_constructor(vm.names.Set, m_set_constructor, m_set_prototype);
     add_constructor(vm.names.String, m_string_constructor, m_string_prototype);
     add_constructor(vm.names.Symbol, m_symbol_constructor, m_symbol_prototype);
+    add_constructor(vm.names.WeakSet, m_weak_set_constructor, m_weak_set_prototype);
 
     initialize_constructor(vm.names.TypedArray, m_typed_array_constructor, m_typed_array_prototype);
 
@@ -200,12 +209,13 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_float)
 {
     if (vm.argument(0).is_number())
         return vm.argument(0);
-    auto string = vm.argument(0).to_string(global_object);
+    auto input_string = vm.argument(0).to_string(global_object);
     if (vm.exception())
         return {};
-    for (size_t length = string.length(); length > 0; --length) {
+    auto trimmed_string = input_string.trim_whitespace(TrimMode::Left);
+    for (size_t length = trimmed_string.length(); length > 0; --length) {
         // This can't throw, so no exception check is fine.
-        auto number = Value(js_string(vm, string.substring(0, length))).to_number(global_object);
+        auto number = Value(js_string(vm, trimmed_string.substring(0, length))).to_number(global_object);
         if (!number.is_nan())
             return number;
     }
@@ -249,9 +259,9 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::parse_int)
     }
 
     auto parse_digit = [&](u32 code_point, i32 radix) -> Optional<i32> {
-        if (!is_ascii_hex_digit(code_point) || radix <= 0)
+        if (!is_ascii_alphanumeric(code_point) || radix <= 0)
             return {};
-        auto digit = parse_ascii_hex_digit(code_point);
+        auto digit = parse_ascii_base36_digit(code_point);
         if (digit >= (u32)radix)
             return {};
         return digit;
@@ -287,6 +297,11 @@ void GlobalObject::put_to_scope(const FlyString& name, Variable variable)
     put(name, variable.value);
 }
 
+bool GlobalObject::delete_from_scope(FlyString const& name)
+{
+    return delete_property(name);
+}
+
 bool GlobalObject::has_this_binding() const
 {
     return true;
@@ -314,10 +329,8 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::eval)
     auto& caller_frame = vm.call_stack().at(vm.call_stack().size() - 2);
     TemporaryChange scope_change(vm.call_frame().scope, caller_frame->scope);
 
-    vm.interpreter().execute_statement(global_object, program);
-    if (vm.exception())
-        return {};
-    return vm.last_value().value_or(js_undefined());
+    auto& interpreter = vm.interpreter();
+    return interpreter.execute_statement(global_object, program).value_or(js_undefined());
 }
 
 // 19.2.6.1.1 Encode ( string, unescapedSet )
@@ -431,6 +444,48 @@ JS_DEFINE_NATIVE_FUNCTION(GlobalObject::decode_uri_component)
     if (vm.exception())
         return {};
     return js_string(vm, move(decoded));
+}
+
+JS_DEFINE_NATIVE_FUNCTION(GlobalObject::escape)
+{
+    auto string = vm.argument(0).to_string(global_object);
+    if (vm.exception())
+        return {};
+    StringBuilder escaped;
+    for (auto code_point : Utf8View(string)) {
+        if (code_point < 256) {
+            if ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"sv.contains(code_point))
+                escaped.append(code_point);
+            else
+                escaped.appendff("%{:02X}", code_point);
+            continue;
+        }
+        escaped.appendff("%u{:04X}", code_point); // FIXME: Handle utf-16 surrogate pairs
+    }
+    return js_string(vm, escaped.build());
+}
+
+JS_DEFINE_NATIVE_FUNCTION(GlobalObject::unescape)
+{
+    auto string = vm.argument(0).to_string(global_object);
+    if (vm.exception())
+        return {};
+    ssize_t length = string.length();
+    StringBuilder unescaped(length);
+    for (auto k = 0; k < length; ++k) {
+        u32 code_point = string[k];
+        if (code_point == '%') {
+            if (k <= length - 6 && string[k + 1] == 'u' && is_ascii_hex_digit(string[k + 2]) && is_ascii_hex_digit(string[k + 3]) && is_ascii_hex_digit(string[k + 4]) && is_ascii_hex_digit(string[k + 5])) {
+                code_point = (parse_ascii_hex_digit(string[k + 2]) << 12) | (parse_ascii_hex_digit(string[k + 3]) << 8) | (parse_ascii_hex_digit(string[k + 4]) << 4) | parse_ascii_hex_digit(string[k + 5]);
+                k += 5;
+            } else if (k <= length - 3 && is_ascii_hex_digit(string[k + 1]) && is_ascii_hex_digit(string[k + 2])) {
+                code_point = (parse_ascii_hex_digit(string[k + 1]) << 4) | parse_ascii_hex_digit(string[k + 2]);
+                k += 2;
+            }
+        }
+        unescaped.append_code_point(code_point);
+    }
+    return js_string(vm, unescaped.build());
 }
 
 }

@@ -161,6 +161,29 @@ void VM::set_variable(const FlyString& name, Value value, GlobalObject& global_o
     global_object.put(name, value);
 }
 
+bool VM::delete_variable(FlyString const& name)
+{
+    ScopeObject* specific_scope = nullptr;
+    Optional<Variable> possible_match;
+    if (!m_call_stack.is_empty()) {
+        for (auto* scope = current_scope(); scope; scope = scope->parent()) {
+            possible_match = scope->get_from_scope(name);
+            if (possible_match.has_value()) {
+                specific_scope = scope;
+                break;
+            }
+        }
+    }
+
+    if (!possible_match.has_value())
+        return false;
+    if (possible_match.value().declaration_kind == DeclarationKind::Const)
+        return false;
+
+    VERIFY(specific_scope);
+    return specific_scope->delete_from_scope(name);
+}
+
 void VM::assign(const FlyString& target, Value value, GlobalObject& global_object, bool first_assignment, ScopeObject* specific_scope)
 {
     set_variable(target, move(value), global_object, first_assignment, specific_scope);
@@ -376,12 +399,14 @@ Value VM::construct(Function& function, Function& new_target, Optional<MarkedVal
         call_frame.arguments.append(arguments.value().values());
     auto* environment = function.create_environment();
     call_frame.scope = environment;
-    environment->set_new_target(&new_target);
+    if (environment)
+        environment->set_new_target(&new_target);
 
     Object* new_object = nullptr;
     if (function.constructor_kind() == Function::ConstructorKind::Base) {
         new_object = Object::create_empty(global_object);
-        environment->bind_this_value(global_object, new_object);
+        if (environment)
+            environment->bind_this_value(global_object, new_object);
         if (exception())
             return {};
         auto prototype = new_target.get(names.prototype);
@@ -399,15 +424,18 @@ Value VM::construct(Function& function, Function& new_target, Optional<MarkedVal
     call_frame.this_value = this_value;
     auto result = function.construct(new_target);
 
-    this_value = call_frame.scope->get_this_binding(global_object);
+    if (environment)
+        this_value = environment->get_this_binding(global_object);
     pop_call_frame();
     call_frame_popper.disarm();
 
     // If we are constructing an instance of a derived class,
     // set the prototype on objects created by constructors that return an object (i.e. NativeFunction subclasses).
     if (function.constructor_kind() == Function::ConstructorKind::Base && new_target.constructor_kind() == Function::ConstructorKind::Derived && result.is_object()) {
-        VERIFY(is<LexicalEnvironment>(current_scope()));
-        static_cast<LexicalEnvironment*>(current_scope())->replace_this_binding(result);
+        if (environment) {
+            VERIFY(is<LexicalEnvironment>(current_scope()));
+            static_cast<LexicalEnvironment*>(current_scope())->replace_this_binding(result);
+        }
         auto prototype = new_target.get(names.prototype);
         if (exception())
             return {};
@@ -484,8 +512,11 @@ Value VM::call_internal(Function& function, Value this_value, Optional<MarkedVal
     auto* environment = function.create_environment();
     call_frame.scope = environment;
 
-    VERIFY(environment->this_binding_status() == LexicalEnvironment::ThisBindingStatus::Uninitialized);
-    environment->bind_this_value(function.global_object(), call_frame.this_value);
+    if (environment) {
+        VERIFY(environment->this_binding_status() == LexicalEnvironment::ThisBindingStatus::Uninitialized);
+        environment->bind_this_value(function.global_object(), call_frame.this_value);
+    }
+
     if (exception())
         return {};
 
@@ -542,6 +573,12 @@ void VM::promise_rejection_tracker(const Promise& promise, Promise::RejectionOpe
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+void VM::dump_backtrace() const
+{
+    for (ssize_t i = m_call_stack.size() - 1; i >= 0; --i)
+        dbgln("-> {}", m_call_stack[i]->function_name);
 }
 
 }

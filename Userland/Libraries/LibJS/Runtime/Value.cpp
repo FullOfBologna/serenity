@@ -7,6 +7,7 @@
 
 #include <AK/AllOf.h>
 #include <AK/FlyString.h>
+#include <AK/Result.h>
 #include <AK/String.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
@@ -26,6 +27,7 @@
 #include <LibJS/Runtime/NumberObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/Symbol.h>
@@ -196,14 +198,29 @@ static String double_to_string(double d)
     return builder.to_string();
 }
 
-bool Value::is_array() const
+// 7.2.2 IsArray, https://tc39.es/ecma262/#sec-isarray
+bool Value::is_array(GlobalObject& global_object) const
 {
-    return is_object() && as_object().is_array();
+    if (!is_object())
+        return false;
+    auto& object = as_object();
+    if (object.is_array())
+        return true;
+    if (is<ProxyObject>(object)) {
+        auto& proxy = static_cast<ProxyObject const&>(object);
+        if (proxy.is_revoked()) {
+            auto& vm = global_object.vm();
+            vm.throw_exception<TypeError>(global_object, ErrorType::ProxyRevoked);
+            return false;
+        }
+        return Value(&proxy.target()).is_array(global_object);
+    }
+    return false;
 }
 
 Array& Value::as_array()
 {
-    VERIFY(is_array());
+    VERIFY(is_object() && as_object().is_array());
     return static_cast<Array&>(*m_value.as_object);
 }
 
@@ -543,6 +560,16 @@ double Value::to_double(GlobalObject& global_object) const
     return number.as_double();
 }
 
+StringOrSymbol Value::to_property_key(GlobalObject& global_object) const
+{
+    auto key = to_primitive(global_object, PreferredType::String);
+    if (global_object.vm().exception())
+        return {};
+    if (key.is_symbol())
+        return &key.as_symbol();
+    return to_string(global_object);
+}
+
 i32 Value::to_i32_slow_case(GlobalObject& global_object) const
 {
     VERIFY(type() != Type::Int32);
@@ -556,7 +583,8 @@ i32 Value::to_i32_slow_case(GlobalObject& global_object) const
     auto int_val = floor(abs);
     if (signbit(value))
         int_val = -int_val;
-    auto int32bit = fmod(int_val, 4294967296.0);
+    auto remainder = fmod(int_val, 4294967296.0);
+    auto int32bit = remainder >= 0.0 ? remainder : remainder + 4294967296.0; // The notation “x modulo y” computes a value k of the same sign as y
     if (int32bit >= 2147483648.0)
         int32bit -= 4294967296.0;
     return static_cast<i32>(int32bit);
@@ -1008,10 +1036,10 @@ Value in(GlobalObject& global_object, Value lhs, Value rhs)
         global_object.vm().throw_exception<TypeError>(global_object, ErrorType::InOperatorWithObject);
         return {};
     }
-    auto lhs_string_or_symbol = StringOrSymbol::from_value(global_object, lhs);
+    auto lhs_property_key = lhs.to_property_key(global_object);
     if (global_object.vm().exception())
         return {};
-    return Value(rhs.as_object().has_property(lhs_string_or_symbol));
+    return Value(rhs.as_object().has_property(lhs_property_key));
 }
 
 Value instance_of(GlobalObject& global_object, Value lhs, Value rhs)
@@ -1379,4 +1407,47 @@ Object* species_constructor(GlobalObject& global_object, const Object& object, O
     vm.throw_exception<TypeError>(global_object, ErrorType::NotAConstructor, species.to_string_without_side_effects());
     return nullptr;
 }
+
+// 7.2.1 RequireObjectCoercible, https://tc39.es/ecma262/#sec-requireobjectcoercible
+Value require_object_coercible(GlobalObject& global_object, Value value)
+{
+    auto& vm = global_object.vm();
+    if (value.is_nullish()) {
+        vm.throw_exception<TypeError>(global_object, ErrorType::NotObjectCoercible, value.to_string_without_side_effects());
+        return {};
+    }
+    return value;
+}
+
+// 7.3.19 CreateListFromArrayLike, https://tc39.es/ecma262/#sec-createlistfromarraylike
+MarkedValueList create_list_from_array_like(GlobalObject& global_object, Value value, AK::Function<Result<void, ErrorType>(Value)> check_value)
+{
+    auto& vm = global_object.vm();
+    auto& heap = global_object.heap();
+    if (!value.is_object()) {
+        vm.throw_exception<TypeError>(global_object, ErrorType::NotAnObject, value.to_string_without_side_effects());
+        return MarkedValueList { heap };
+    }
+    auto& array_like = value.as_object();
+    auto length = length_of_array_like(global_object, array_like);
+    if (vm.exception())
+        return MarkedValueList { heap };
+    auto list = MarkedValueList { heap };
+    for (size_t i = 0; i < length; ++i) {
+        auto index_name = String::number(i);
+        auto next = array_like.get(index_name).value_or(js_undefined());
+        if (vm.exception())
+            return MarkedValueList { heap };
+        if (check_value) {
+            auto result = check_value(next);
+            if (result.is_error()) {
+                vm.throw_exception<TypeError>(global_object, result.release_error());
+                return MarkedValueList { heap };
+            }
+        }
+        list.append(next);
+    }
+    return list;
+}
+
 }

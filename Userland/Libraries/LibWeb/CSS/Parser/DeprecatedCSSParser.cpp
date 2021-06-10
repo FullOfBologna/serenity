@@ -219,7 +219,7 @@ static bool takes_integer_value(CSS::PropertyID property_id)
 
 static StringView parse_custom_property_name(const StringView& value)
 {
-    if (!value.starts_with("var(") && !value.ends_with(")"))
+    if (!value.starts_with("var(") || !value.ends_with(")"))
         return {};
     // FIXME: Allow for fallback
     auto first_comma_index = value.find_first_of(",");
@@ -240,8 +240,12 @@ RefPtr<CSS::StyleValue> parse_css_value(const CSS::ParsingContext& context, cons
     }
 
     auto length = parse_length(context, string, is_bad_length);
-    if (is_bad_length)
+    if (is_bad_length) {
+        auto float_number = try_parse_float(string);
+        if (float_number.has_value())
+            return CSS::NumericStyleValue::create(float_number.value());
         return nullptr;
+    }
     if (!length.is_undefined())
         return CSS::LengthStyleValue::create(length);
 

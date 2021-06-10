@@ -23,6 +23,7 @@ public:
 
     virtual Optional<Variable> get_from_scope(const FlyString&) const override;
     virtual void put_to_scope(const FlyString&, Variable) override;
+    virtual bool delete_from_scope(FlyString const&) override;
     virtual bool has_this_binding() const override;
     virtual Value get_this_binding(GlobalObject&) const override;
 
@@ -68,6 +69,8 @@ private:
     JS_DECLARE_NATIVE_FUNCTION(decode_uri);
     JS_DECLARE_NATIVE_FUNCTION(encode_uri_component);
     JS_DECLARE_NATIVE_FUNCTION(decode_uri_component);
+    JS_DECLARE_NATIVE_FUNCTION(escape);
+    JS_DECLARE_NATIVE_FUNCTION(unescape);
 
     NonnullOwnPtr<Console> m_console;
 

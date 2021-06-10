@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -302,8 +302,7 @@ Value WithStatement::execute(Interpreter& interpreter, GlobalObject& global_obje
 
     auto* with_scope = interpreter.heap().allocate<WithScope>(global_object, *object, interpreter.vm().call_frame().scope);
     TemporaryChange<ScopeObject*> scope_change(interpreter.vm().call_frame().scope, with_scope);
-    interpreter.execute_statement(global_object, m_body);
-    return {};
+    return interpreter.execute_statement(global_object, m_body).value_or(js_undefined());
 }
 
 Value WhileStatement::execute(Interpreter& interpreter, GlobalObject& global_object) const
@@ -686,16 +685,7 @@ Value UnaryExpression::execute(Interpreter& interpreter, GlobalObject& global_ob
         auto reference = m_lhs->to_reference(interpreter, global_object);
         if (interpreter.exception())
             return {};
-        if (reference.is_unresolvable())
-            return Value(true);
-        // FIXME: Support deleting locals
-        VERIFY(!reference.is_local_variable());
-        if (reference.is_global_variable())
-            return Value(global_object.delete_property(reference.name()));
-        auto* base_object = reference.base().to_object(global_object);
-        if (!base_object)
-            return {};
-        return Value(base_object->delete_property(reference.name()));
+        return Value(reference.delete_(global_object));
     }
 
     Value lhs_result;
@@ -824,15 +814,15 @@ Value ClassExpression::execute(Interpreter& interpreter, GlobalObject& global_ob
 
         switch (method.kind()) {
         case ClassMethod::Kind::Method:
-            target.define_property(StringOrSymbol::from_value(global_object, key), method_value);
+            target.define_property(key.to_property_key(global_object), method_value);
             break;
         case ClassMethod::Kind::Getter:
             update_function_name(method_value, String::formatted("get {}", get_function_name(global_object, key)));
-            target.define_accessor(StringOrSymbol::from_value(global_object, key), &method_function, nullptr, Attribute::Configurable | Attribute::Enumerable);
+            target.define_accessor(key.to_property_key(global_object), &method_function, nullptr, Attribute::Configurable | Attribute::Enumerable);
             break;
         case ClassMethod::Kind::Setter:
             update_function_name(method_value, String::formatted("set {}", get_function_name(global_object, key)));
-            target.define_accessor(StringOrSymbol::from_value(global_object, key), nullptr, &method_function, Attribute::Configurable | Attribute::Enumerable);
+            target.define_accessor(key.to_property_key(global_object), nullptr, &method_function, Attribute::Configurable | Attribute::Enumerable);
             break;
         default:
             VERIFY_NOT_REACHED();
@@ -1679,7 +1669,7 @@ Value ObjectExpression::execute(Interpreter& interpreter, GlobalObject& global_o
             return {};
 
         if (property.type() == ObjectProperty::Type::Spread) {
-            if (key.is_array()) {
+            if (key.is_object() && key.as_object().is_array()) {
                 auto& array_to_spread = static_cast<Array&>(key.as_object());
                 for (auto& entry : array_to_spread.indexed_properties()) {
                     object->indexed_properties().put(object, entry.index(), entry.value_and_attributes(&array_to_spread).value);
@@ -1705,7 +1695,6 @@ Value ObjectExpression::execute(Interpreter& interpreter, GlobalObject& global_o
                         return {};
                 }
             }
-
             continue;
         }
 
@@ -2085,6 +2074,7 @@ Value SwitchStatement::execute(Interpreter& interpreter, GlobalObject& global_ob
         return {};
 
     bool falling_through = false;
+    auto last_value = js_undefined();
 
     for (auto& switch_case : m_cases) {
         if (!falling_through && switch_case.test()) {
@@ -2097,24 +2087,25 @@ Value SwitchStatement::execute(Interpreter& interpreter, GlobalObject& global_ob
         falling_through = true;
 
         for (auto& statement : switch_case.consequent()) {
-            auto last_value = statement.execute(interpreter, global_object);
+            auto value = statement.execute(interpreter, global_object);
+            if (!value.is_empty())
+                last_value = value;
             if (interpreter.exception())
                 return {};
             if (interpreter.vm().should_unwind()) {
                 if (interpreter.vm().should_unwind_until(ScopeType::Continuable, m_label)) {
                     // No stop_unwind(), the outer loop will handle that - we just need to break out of the switch/case.
-                    return {};
+                    return last_value;
                 } else if (interpreter.vm().should_unwind_until(ScopeType::Breakable, m_label)) {
                     interpreter.vm().stop_unwind();
-                    return {};
+                    return last_value;
                 } else {
                     return last_value;
                 }
             }
         }
     }
-
-    return js_undefined();
+    return last_value;
 }
 
 Value SwitchCase::execute(Interpreter& interpreter, GlobalObject&) const

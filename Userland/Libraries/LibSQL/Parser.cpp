@@ -5,6 +5,7 @@
  */
 
 #include "Parser.h"
+#include <AK/ScopeGuard.h>
 #include <AK/TypeCasts.h>
 
 namespace SQL {
@@ -352,6 +353,11 @@ RefPtr<CommonTableExpressionList> Parser::parse_common_table_expression_list()
 
 NonnullRefPtr<Expression> Parser::parse_expression()
 {
+    if (++m_parser_state.m_current_expression_depth > Limits::maximum_expression_tree_depth) {
+        syntax_error(String::formatted("Exceeded maximum expression tree depth of {}", Limits::maximum_expression_tree_depth));
+        return create_ast_node<ErrorExpression>();
+    }
+
     // https://sqlite.org/lang_expr.html
     auto expression = parse_primary_expression();
 
@@ -362,6 +368,7 @@ NonnullRefPtr<Expression> Parser::parse_expression()
     // FIXME: Parse 'function-name'.
     // FIXME: Parse 'raise-function'.
 
+    --m_parser_state.m_current_expression_depth;
     return expression;
 }
 
@@ -940,6 +947,11 @@ NonnullRefPtr<ResultColumn> Parser::parse_result_column()
 
 NonnullRefPtr<TableOrSubquery> Parser::parse_table_or_subquery()
 {
+    if (++m_parser_state.m_current_subquery_depth > Limits::maximum_subquery_depth)
+        syntax_error(String::formatted("Exceeded maximum subquery depth of {}", Limits::maximum_subquery_depth));
+
+    ScopeGuard guard([&]() { --m_parser_state.m_current_subquery_depth; });
+
     // https://sqlite.org/syntax/table-or-subquery.html
     if (match(TokenType::Identifier)) {
         String schema_name;

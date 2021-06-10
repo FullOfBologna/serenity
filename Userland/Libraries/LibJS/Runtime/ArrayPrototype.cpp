@@ -150,8 +150,9 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::map)
     auto initial_length = length_of_array_like(global_object, *this_object);
     if (vm.exception())
         return {};
-    auto* new_array = Array::create(global_object);
-    new_array->indexed_properties().set_array_like_size(initial_length);
+    auto* new_array = Array::create(global_object, initial_length);
+    if (vm.exception())
+        return {};
     for_each_item(vm, global_object, "map", [&](auto index, auto, auto callback_result) {
         if (vm.exception())
             return IterationDecision::Break;
@@ -357,14 +358,14 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::concat)
 
     for (size_t i = 0; i < vm.argument_count(); ++i) {
         auto argument = vm.argument(i);
-        if (argument.is_array()) {
+        if (argument.is_array(global_object)) {
             auto& argument_object = argument.as_object();
             new_array->indexed_properties().append_all(&argument_object, argument_object.indexed_properties());
-            if (vm.exception())
-                return {};
-        } else {
-            new_array->indexed_properties().append(argument);
+            continue;
         }
+        if (vm.exception())
+            return {};
+        new_array->indexed_properties().append(argument);
     }
 
     return Value(new_array);
@@ -855,6 +856,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::every)
     return Value(result);
 }
 
+// 23.1.3.28 Array.prototype.splice, https://tc39.es/ecma262#sec-array.prototype.splice
 JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
 {
     auto* this_object = vm.this_value(global_object).to_object(global_object);
@@ -897,15 +899,31 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
         return {};
     }
 
-    auto removed_elements = Array::create(global_object);
+    // FIXME: Use ArraySpeciesCreate.
+    auto removed_elements = Array::create(global_object, actual_delete_count);
+    if (vm.exception())
+        return {};
 
     for (size_t i = 0; i < actual_delete_count; ++i) {
-        auto value = this_object->get(actual_start + i);
+        auto from = actual_start + i;
+        bool from_present = this_object->has_property(from);
         if (vm.exception())
             return {};
 
-        removed_elements->indexed_properties().append(value);
+        if (from_present) {
+            auto from_value = this_object->get(actual_start + i);
+            if (vm.exception())
+                return {};
+
+            removed_elements->define_property(i, from_value);
+            if (vm.exception())
+                return {};
+        }
     }
+
+    removed_elements->put(vm.names.length, Value(actual_delete_count));
+    if (vm.exception())
+        return {};
 
     if (insert_count < actual_delete_count) {
         for (size_t i = actual_start; i < initial_length - actual_delete_count; ++i) {
@@ -1026,10 +1044,12 @@ static void recursive_array_flat(VM& vm, GlobalObject& global_object, Array& new
         if (vm.exception())
             return;
 
-        if (depth > 0 && value.is_array()) {
+        if (depth > 0 && value.is_array(global_object)) {
             recursive_array_flat(vm, global_object, new_array, value.as_array(), depth - 1);
             continue;
         }
+        if (vm.exception())
+            return;
         if (!value.is_empty()) {
             new_array.indexed_properties().append(value);
             if (vm.exception())

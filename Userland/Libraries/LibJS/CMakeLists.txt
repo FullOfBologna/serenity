@@ -1,5 +1,12 @@
 set(SOURCES
     AST.cpp
+    Bytecode/ASTCodegen.cpp
+    Bytecode/BasicBlock.cpp
+    Bytecode/Generator.cpp
+    Bytecode/Instruction.cpp
+    Bytecode/Interpreter.cpp
+    Bytecode/Op.cpp
+    Bytecode/StringTable.cpp
     Console.cpp
     Heap/CellAllocator.cpp
     Heap/BlockAllocator.cpp
@@ -70,6 +77,11 @@ set(SOURCES
     Runtime/RegExpPrototype.cpp
     Runtime/ScopeObject.cpp
     Runtime/ScriptFunction.cpp
+    Runtime/Set.cpp
+    Runtime/SetConstructor.cpp
+    Runtime/SetIterator.cpp
+    Runtime/SetIteratorPrototype.cpp
+    Runtime/SetPrototype.cpp
     Runtime/Shape.cpp
     Runtime/StringConstructor.cpp
     Runtime/StringIterator.cpp
@@ -85,6 +97,9 @@ set(SOURCES
     Runtime/TypedArrayPrototype.cpp
     Runtime/VM.cpp
     Runtime/Value.cpp
+    Runtime/WeakSet.cpp
+    Runtime/WeakSetConstructor.cpp
+    Runtime/WeakSetPrototype.cpp
     Runtime/WithScope.cpp
     SyntaxHighlighter.cpp
     Token.cpp

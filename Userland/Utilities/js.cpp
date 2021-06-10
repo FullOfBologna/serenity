@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Andreas Kling <kling@serenityos.org>
+ * Copyright (c) 2020-2021, Andreas Kling <kling@serenityos.org>
  * Copyright (c) 2020-2021, Linus Groh <linusg@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
@@ -14,6 +14,9 @@
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibJS/AST.h>
+#include <LibJS/Bytecode/BasicBlock.h>
+#include <LibJS/Bytecode/Generator.h>
+#include <LibJS/Bytecode/Interpreter.h>
 #include <LibJS/Console.h>
 #include <LibJS/Interpreter.h>
 #include <LibJS/Parser.h>
@@ -32,6 +35,7 @@
 #include <LibJS/Runtime/ProxyObject.h>
 #include <LibJS/Runtime/RegExpObject.h>
 #include <LibJS/Runtime/ScriptFunction.h>
+#include <LibJS/Runtime/Set.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/StringObject.h>
 #include <LibJS/Runtime/TypedArray.h>
@@ -73,6 +77,8 @@ private:
 };
 
 static bool s_dump_ast = false;
+static bool s_dump_bytecode = false;
+static bool s_run_bytecode = false;
 static bool s_print_last_result = false;
 static RefPtr<Line::Editor> s_editor;
 static String s_history_path = String::formatted("{}/.js-history", Core::StandardPaths::home_directory());
@@ -272,6 +278,22 @@ static void print_proxy_object(const JS::Object& object, HashTable<JS::Object*>&
     print_value(&proxy_object.handler(), seen_objects);
 }
 
+static void print_set(const JS::Object& object, HashTable<JS::Object*>& seen_objects)
+{
+    auto& set = static_cast<const JS::Set&>(object);
+    auto& values = set.values();
+    print_type("Set");
+    out(" {{");
+    bool first = true;
+    for (auto& value : values) {
+        print_separator(first);
+        print_value(value, seen_objects);
+    }
+    if (!first)
+        out(" ");
+    out("}}");
+}
+
 static void print_promise(const JS::Object& object, HashTable<JS::Object*>& seen_objects)
 {
     auto& promise = static_cast<const JS::Promise&>(object);
@@ -381,11 +403,10 @@ static void print_value(JS::Value value, HashTable<JS::Object*>& seen_objects)
         seen_objects.set(&value.as_object());
     }
 
-    if (value.is_array())
-        return print_array(static_cast<JS::Array&>(value.as_object()), seen_objects);
-
     if (value.is_object()) {
         auto& object = value.as_object();
+        if (object.is_array())
+            return print_array(static_cast<JS::Array&>(object), seen_objects);
         if (object.is_function())
             return print_function(object, seen_objects);
         if (is<JS::Date>(object))
@@ -394,6 +415,8 @@ static void print_value(JS::Value value, HashTable<JS::Object*>& seen_objects)
             return print_error(object, seen_objects);
         if (is<JS::RegExpObject>(object))
             return print_regexp_object(object, seen_objects);
+        if (is<JS::Set>(object))
+            return print_set(object, seen_objects);
         if (is<JS::ProxyObject>(object))
             return print_proxy_object(object, seen_objects);
         if (is<JS::Promise>(object))
@@ -488,6 +511,25 @@ static bool parse_and_run(JS::Interpreter& interpreter, const StringView& source
 
     if (s_dump_ast)
         program->dump(0);
+
+    if (s_dump_bytecode || s_run_bytecode) {
+        auto unit = JS::Bytecode::Generator::generate(*program);
+        if (s_dump_bytecode) {
+            for (auto& block : unit.basic_blocks)
+                block.dump(unit);
+            if (!unit.string_table->is_empty()) {
+                outln();
+                unit.string_table->dump();
+            }
+        }
+
+        if (s_run_bytecode) {
+            JS::Bytecode::Interpreter bytecode_interpreter(interpreter.global_object());
+            bytecode_interpreter.run(unit);
+        }
+
+        return true;
+    }
 
     if (parser.has_errors()) {
         auto error = parser.errors()[0];
@@ -744,6 +786,8 @@ int main(int argc, char** argv)
     Core::ArgsParser args_parser;
     args_parser.set_general_help("This is a JavaScript interpreter.");
     args_parser.add_option(s_dump_ast, "Dump the AST", "dump-ast", 'A');
+    args_parser.add_option(s_dump_bytecode, "Dump the bytecode", "dump-bytecode", 'd');
+    args_parser.add_option(s_run_bytecode, "Run the bytecode", "run-bytecode", 'b');
     args_parser.add_option(s_print_last_result, "Print last result", "print-last-result", 'l');
     args_parser.add_option(gc_on_every_allocation, "GC on every allocation", "gc-on-every-allocation", 'g');
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');

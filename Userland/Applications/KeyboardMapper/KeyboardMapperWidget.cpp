@@ -127,7 +127,8 @@ void KeyboardMapperWidget::load_from_file(String filename)
 {
     auto result = Keyboard::CharacterMapFile::load_from_file(filename);
     if (!result.has_value()) {
-        dbgln("Failed to load character map from file {}", filename);
+        auto error_message = String::formatted("Failed to load character map from file {}", filename);
+        GUI::MessageBox::show(window(), error_message, "Error", GUI::MessageBox::Type::Error);
         return;
     }
 
@@ -135,9 +136,9 @@ void KeyboardMapperWidget::load_from_file(String filename)
     m_character_map = result.value();
     set_current_map("map");
 
-    for (Widget* widget : m_map_group->child_widgets()) {
-        auto radio_button = (GUI::RadioButton*)widget;
-        radio_button->set_checked(radio_button->name() == "map");
+    for (auto& widget : m_map_group->child_widgets()) {
+        auto& radio_button = static_cast<GUI::RadioButton&>(widget);
+        radio_button.set_checked(radio_button.name() == "map");
     }
 
     update_window_title();
@@ -152,9 +153,9 @@ void KeyboardMapperWidget::load_from_system()
     m_character_map = result.value().character_map_data();
     set_current_map("map");
 
-    for (Widget* widget : m_map_group->child_widgets()) {
-        auto radio_button = (GUI::RadioButton*)widget;
-        radio_button->set_checked(radio_button->name() == "map");
+    for (auto& widget : m_map_group->child_widgets()) {
+        auto& radio_button = static_cast<GUI::RadioButton&>(widget);
+        radio_button.set_checked(radio_button.name() == "map");
     }
 
     update_window_title();

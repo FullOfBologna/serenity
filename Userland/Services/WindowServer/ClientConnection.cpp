@@ -332,6 +332,16 @@ Messages::WindowServer::IsMaximizedResponse ClientConnection::is_maximized(i32 w
     return it->value->is_maximized();
 }
 
+void ClientConnection::set_maximized(i32 window_id, bool maximized)
+{
+    auto it = m_windows.find(window_id);
+    if (it == m_windows.end()) {
+        did_misbehave("SetMaximized: Bad window ID");
+        return;
+    }
+    it->value->set_maximized(maximized);
+}
+
 void ClientConnection::set_window_icon_bitmap(i32 window_id, Gfx::ShareableBitmap const& icon)
 {
     auto it = m_windows.find(window_id);
@@ -904,6 +914,20 @@ Messages::WindowServer::GetScreenBitmapResponse ClientConnection::get_screen_bit
     return bitmap.to_shareable_bitmap();
 }
 
+Messages::WindowServer::GetScreenBitmapAroundCursorResponse ClientConnection::get_screen_bitmap_around_cursor(Gfx::IntSize const& size)
+{
+    auto scale_factor = WindowManager::the().scale_factor();
+    auto cursor_location = Screen::the().cursor_location();
+    Gfx::Rect rect { (cursor_location.x() * scale_factor) - (size.width() / 2), (cursor_location.y() * scale_factor) - (size.height() / 2), size.width(), size.height() };
+
+    // Recompose the screen to make sure the cursor is painted in the location we think it is.
+    // FIXME: This is rather wasteful. We can probably think of a way to avoid this.
+    Compositor::the().compose();
+
+    auto bitmap = Compositor::the().front_bitmap_for_screenshot({}).cropped(rect);
+    return bitmap->to_shareable_bitmap();
+}
+
 Messages::WindowServer::IsWindowModifiedResponse ClientConnection::is_window_modified(i32 window_id)
 {
     auto it = m_windows.find(window_id);
@@ -913,6 +937,11 @@ Messages::WindowServer::IsWindowModifiedResponse ClientConnection::is_window_mod
     }
     auto& window = *it->value;
     return window.is_modified();
+}
+
+Messages::WindowServer::GetDesktopDisplayScaleResponse ClientConnection::get_desktop_display_scale()
+{
+    return WindowManager::the().scale_factor();
 }
 
 void ClientConnection::set_window_modified(i32 window_id, bool modified)

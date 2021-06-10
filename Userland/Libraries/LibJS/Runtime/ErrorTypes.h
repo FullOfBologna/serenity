@@ -23,12 +23,13 @@
     M(Convert, "Cannot convert {} to {}")                                                                                               \
     M(ConvertUndefinedToObject, "Cannot convert undefined to object")                                                                   \
     M(DescChangeNonConfigurable, "Cannot change attributes of non-configurable property '{}'")                                          \
+    M(DescWriteNonWritable, "Cannot write to non-writable property '{}'")                                                               \
     M(DivisionByZero, "Division by zero")                                                                                               \
-    M(FunctionArgsNotObject, "Argument array must be an object")                                                                        \
     M(GetCapabilitiesExecutorCalledMultipleTimes, "GetCapabilitiesExecutor was called multiple times")                                  \
     M(InOperatorWithObject, "'in' operator must be used on an object")                                                                  \
     M(InstanceOfOperatorBadPrototype, "'prototype' property of {} is not an object")                                                    \
     M(InvalidAssignToConst, "Invalid assignment to const variable")                                                                     \
+    M(InvalidHint, "Invalid hint: \"{}\"")                                                                                              \
     M(InvalidIndex, "Index must be a positive integer")                                                                                 \
     M(InvalidLeftHandAssignment, "Invalid left-hand side in assignment")                                                                \
     M(InvalidLength, "Invalid {} length")                                                                                               \
@@ -43,6 +44,7 @@
     M(JsonCircular, "Cannot stringify circular object")                                                                                 \
     M(JsonMalformed, "Malformed JSON string")                                                                                           \
     M(NegativeExponent, "Exponent must be positive")                                                                                    \
+    M(NonExtensibleDefine, "Cannot define property {} on non-extensible object")                                                        \
     M(NotA, "Not a {} object")                                                                                                          \
     M(NotAConstructor, "{} is not a constructor")                                                                                       \
     M(NotAFunction, "{} is not a function")                                                                                             \
@@ -51,8 +53,7 @@
     M(NotAnObject, "{} is not an object")                                                                                               \
     M(NotASymbol, "{} is not a symbol")                                                                                                 \
     M(NotIterable, "{} is not iterable")                                                                                                \
-    M(NonExtensibleDefine, "Cannot define property {} on non-extensible object")                                                        \
-    M(NumberIncompatibleThis, "Number.prototype.{} method called with incompatible this target")                                        \
+    M(NotObjectCoercible, "{} cannot be converted to an object")                                                                        \
     M(ObjectDefinePropertyReturnedFalse, "Object's [[DefineProperty]] method returned false")                                           \
     M(ObjectFreezeFailed, "Could not freeze object")                                                                                    \
     M(ObjectSealFailed, "Could not seal object")                                                                                        \
@@ -126,15 +127,14 @@
     M(ProxySetPrototypeOfNonExtensible, "Proxy handler's setPrototypeOf trap violates "                                                 \
                                         "invariant: the argument must match the prototype of the target if the "                        \
                                         "target is non-extensible")                                                                     \
-    M(ProxyTwoArguments, "Proxy constructor requires at least two arguments")                                                           \
     M(ReduceNoInitial, "Reduce of empty array with no initial value")                                                                   \
+    M(ReferenceNullishDeleteProperty, "Cannot delete property '{}' of {}")                                                              \
     M(ReferenceNullishGetProperty, "Cannot get property '{}' of {}")                                                                    \
     M(ReferenceNullishSetProperty, "Cannot set property '{}' of {}")                                                                    \
     M(ReferencePrimitiveSetProperty, "Cannot set property '{}' of {} '{}'")                                                             \
     M(ReferenceUnresolvable, "Unresolvable reference")                                                                                  \
     M(ReflectArgumentMustBeAFunction, "First argument of Reflect.{}() must be a function")                                              \
     M(ReflectArgumentMustBeAnObject, "First argument of Reflect.{}() must be an object")                                                \
-    M(ReflectBadArgumentsList, "Arguments list must be an object")                                                                      \
     M(ReflectBadNewTarget, "Optional third argument of Reflect.construct() must be a constructor")                                      \
     M(ReflectBadDescriptorArgument, "Descriptor argument is not an object")                                                             \
     M(RegExpCompileError, "RegExp compile error: {}")                                                                                   \
