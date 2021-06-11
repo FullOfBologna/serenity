@@ -55,7 +55,7 @@ int main(int, char**)
     }
 
     auto wm_config = Core::ConfigFile::open("/etc/WindowServer.ini");
-    auto theme_name = wm_config->read_entry("Theme", "Name", "Default");
+    auto theme_name = wm_config->read_entry("Theme", "Name", "Dark");
 
     auto theme = Gfx::load_system_theme(String::formatted("/res/themes/{}.ini", theme_name));
     VERIFY(theme.is_valid());

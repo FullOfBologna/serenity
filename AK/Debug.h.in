@@ -230,6 +230,10 @@
 #cmakedefine01 JS_BYTECODE_DEBUG
 #endif
 
+#ifndef PY_DEBUG
+#cmakedefine01 PY_DEBUG 01
+#endif
+
 #ifndef KEYBOARD_SHORTCUTS_DEBUG
 #cmakedefine01 KEYBOARD_SHORTCUTS_DEBUG
 #endif

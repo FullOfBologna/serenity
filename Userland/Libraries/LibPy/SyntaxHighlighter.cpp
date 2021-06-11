@@ -13,13 +13,15 @@
 
 namespace Py {
 
-static Syntax::TextStyle style_for_token_type(const Gfx::Palette& palette, Py::Token::Type type)
+static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::Token::Type type)
 {
     switch (type) {
     case Py::Token::Type::Keyword:
         return { palette.syntax_keyword(), true };
     case Py::Token::Type::KnownType:
         return { palette.syntax_type(), true };
+    // case Py::Token::Type::FunctionDefine:
+    //     return { palette.syntax_keyword(), true};
     case Py::Token::Type::Identifier:
         return { palette.syntax_identifier(), false };
     case Py::Token::Type::DoubleQuotedString:
@@ -42,19 +44,19 @@ static Syntax::TextStyle style_for_token_type(const Gfx::Palette& palette, Py::T
     }
 }
 
-bool SyntaxHighlighter::is_identifier(void* token) const
+bool SyntaxHighlighter::is_identifier(u64 token) const
 {
-    auto py_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
-    return py_token == Py::Token::Type::Identifier;
+    auto Py_token = static_cast<Py::Token::Type>(token);
+    return Py_token == Py::Token::Type::Identifier;
 }
 
-bool SyntaxHighlighter::is_navigatable(void* token) const
+bool SyntaxHighlighter::is_navigatable(u64 token) const
 {
-    auto py_token = static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token));
-    return py_token == Py::Token::Type::ImportModule;
+    auto Py_token = static_cast<Py::Token::Type>(token);
+    return Py_token == Py::Token::Type::ImportModule;
 }
 
-void SyntaxHighlighter::rehighlight(const Palette& palette)
+void SyntaxHighlighter::rehighlight(Palette const& palette)
 {
     auto text = m_client->get_text();
     Py::Lexer lexer(text);
@@ -62,15 +64,16 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
 
     Vector<GUI::TextDocumentSpan> spans;
     for (auto& token : tokens) {
+        // FIXME: The +1 for the token end column is a quick hack due to not wanting to modify the lexer (which is also used by the parser). Maybe there's a better way to do this.
         dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column + 1);
         GUI::TextDocumentSpan span;
         span.range.set_start({ token.start().line, token.start().column });
-        span.range.set_end({ token.end().line, token.end().column + 1  });
+        span.range.set_end({ token.end().line, token.end().column + 1 });
         auto style = style_for_token_type(palette, token.type());
         span.attributes.color = style.color;
         span.attributes.bold = style.bold;
         span.is_skippable = token.type() == Py::Token::Type::Whitespace;
-        span.data = reinterpret_cast<void*>(token.type());
+        span.data = static_cast<u64>(token.type());
         spans.append(span);
     }
     m_client->do_set_spans(move(spans));
@@ -81,20 +84,20 @@ void SyntaxHighlighter::rehighlight(const Palette& palette)
     m_client->do_update();
 }
 
-Vector<SyntaxHighlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs() const
+Vector<SyntaxHighlighter::MatchingTokenPair> SyntaxHighlighter::matching_token_pairs_impl() const
 {
     static Vector<SyntaxHighlighter::MatchingTokenPair> pairs;
     if (pairs.is_empty()) {
-        pairs.append({ reinterpret_cast<void*>(Py::Token::Type::LeftCurly), reinterpret_cast<void*>(Py::Token::Type::RightCurly) });
-        pairs.append({ reinterpret_cast<void*>(Py::Token::Type::LeftParen), reinterpret_cast<void*>(Py::Token::Type::RightParen) });
-        pairs.append({ reinterpret_cast<void*>(Py::Token::Type::LeftBracket), reinterpret_cast<void*>(Py::Token::Type::RightBracket) });
+        pairs.append({ static_cast<u64>(Py::Token::Type::LeftCurly), static_cast<u64>(Py::Token::Type::RightCurly) });
+        pairs.append({ static_cast<u64>(Py::Token::Type::LeftParen), static_cast<u64>(Py::Token::Type::RightParen) });
+        pairs.append({ static_cast<u64>(Py::Token::Type::LeftBracket), static_cast<u64>(Py::Token::Type::RightBracket) });
     }
     return pairs;
 }
 
-bool SyntaxHighlighter::token_types_equal(void* token1, void* token2) const
+bool SyntaxHighlighter::token_types_equal(u64 token1, u64 token2) const
 {
-    return static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token1)) == static_cast<Py::Token::Type>(reinterpret_cast<size_t>(token2));
+    return static_cast<Py::Token::Type>(token1) == static_cast<Py::Token::Type>(token2);
 }
 
 SyntaxHighlighter::~SyntaxHighlighter()

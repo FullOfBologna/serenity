@@ -215,6 +215,20 @@ Vector<Token> Lexer::lex()
             commit_token(Token::Type::Whitespace);
             continue;
         }
+        // if (ch == 'd') {
+        //     begin_token();
+        //     consume();
+        //     if(peek() == 'e'){
+        //         consume();
+        //         if(peek() == 'f'){
+        //             consume();
+        //             if(isspace(peek())){
+        //                 commit_token(Token::Type::Keyword);
+        //                 continue;
+        //             }
+        //         }
+        //     }
+        // }
         if (ch == '(') {
             emit_single_char_token(Token::Type::LeftParen);
             continue;
@@ -293,11 +307,11 @@ Vector<Token> Lexer::lex()
         if (ch == '+') {
             begin_token();
             consume();
-            if (peek() == '+') {
-                consume();
-                commit_token(Token::Type::PlusPlus);
-                continue;
-            }
+            // if (peek() == '+') {
+            //     consume();
+            //     commit_token(Token::Type::PlusPlus);
+            //     continue;
+            // }
             if (peek() == '=') {
                 consume();
                 commit_token(Token::Type::PlusEquals);

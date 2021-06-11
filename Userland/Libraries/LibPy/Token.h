@@ -77,6 +77,7 @@ namespace Py {
     __TOKEN(Keyword)               \
     __TOKEN(KnownType)             \
     __TOKEN(Identifier)            \
+    __TOKEN(Function)              \
     __TOKEN(EOF_TOKEN)
 
 struct Position {
