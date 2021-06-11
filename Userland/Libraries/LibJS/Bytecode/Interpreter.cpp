@@ -35,11 +35,13 @@ Interpreter::~Interpreter()
     s_current = nullptr;
 }
 
-Value Interpreter::run(Executable const& executable)
+Value Interpreter::run(Executable const& executable, BasicBlock const* entry_point)
 {
     dbgln_if(JS_BYTECODE_DEBUG, "Bytecode::Interpreter will run unit {:p}", &executable);
 
     TemporaryChange restore_executable { m_current_executable, &executable };
+
+    vm().set_last_value(Badge<Interpreter> {}, {});
 
     CallFrame global_call_frame;
     if (vm().call_stack().is_empty()) {
@@ -54,9 +56,14 @@ Value Interpreter::run(Executable const& executable)
         VERIFY(!vm().exception());
     }
 
-    auto block = &executable.basic_blocks.first();
-    m_register_windows.append(make<RegisterWindow>());
-    registers().resize(executable.number_of_registers);
+    auto block = entry_point ?: &executable.basic_blocks.first();
+    if (m_manually_entered_frames) {
+        VERIFY(registers().size() >= executable.number_of_registers);
+    } else {
+        m_register_windows.append(make<RegisterWindow>());
+        registers().resize(executable.number_of_registers);
+        registers()[Register::global_object_index] = Value(&global_object());
+    }
 
     for (;;) {
         Bytecode::InstructionStreamIterator pc(block->instruction_stream());
@@ -65,8 +72,25 @@ Value Interpreter::run(Executable const& executable)
         while (!pc.at_end()) {
             auto& instruction = *pc;
             instruction.execute(*this);
-            if (vm().exception())
-                break;
+            if (vm().exception()) {
+                m_saved_exception = {};
+                if (m_unwind_contexts.is_empty())
+                    break;
+                auto& unwind_context = m_unwind_contexts.last();
+                if (unwind_context.handler) {
+                    block = unwind_context.handler;
+                    unwind_context.handler = nullptr;
+                    accumulator() = vm().exception()->value();
+                    vm().clear_exception();
+                    will_jump = true;
+                } else if (unwind_context.finalizer) {
+                    block = unwind_context.finalizer;
+                    m_unwind_contexts.take_last();
+                    will_jump = true;
+                    m_saved_exception = Handle<Exception>::create(vm().exception());
+                    vm().clear_exception();
+                }
+            }
             if (m_pending_jump.has_value()) {
                 block = m_pending_jump.release_value();
                 will_jump = true;
@@ -102,7 +126,10 @@ Value Interpreter::run(Executable const& executable)
         }
     }
 
-    m_register_windows.take_last();
+    vm().set_last_value(Badge<Interpreter> {}, accumulator());
+
+    if (!m_manually_entered_frames)
+        m_register_windows.take_last();
 
     auto return_value = m_return_value.value_or(js_undefined());
     m_return_value = {};
@@ -117,4 +144,23 @@ Value Interpreter::run(Executable const& executable)
     return return_value;
 }
 
+void Interpreter::enter_unwind_context(Optional<Label> handler_target, Optional<Label> finalizer_target)
+{
+    m_unwind_contexts.empend(handler_target.has_value() ? &handler_target->block() : nullptr, finalizer_target.has_value() ? &finalizer_target->block() : nullptr);
+}
+
+void Interpreter::leave_unwind_context()
+{
+    m_unwind_contexts.take_last();
+}
+
+void Interpreter::continue_pending_unwind(Label const& resume_label)
+{
+    if (!m_saved_exception.is_null()) {
+        vm().set_exception(*m_saved_exception.cell());
+        m_saved_exception = {};
+    } else {
+        jump(resume_label);
+    }
+}
 }

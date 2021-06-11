@@ -26,6 +26,11 @@ class VariableDeclaration;
 class FunctionDeclaration;
 class Identifier;
 
+enum class FunctionKind {
+    Generator,
+    Regular,
+};
+
 template<class T, class... Args>
 static inline NonnullRefPtr<T>
 create_ast_node(SourceRange range, Args&&... args)
@@ -40,7 +45,7 @@ public:
     virtual void generate_bytecode(Bytecode::Generator&) const;
     virtual void dump(int indent) const;
 
-    const SourceRange& source_range() const { return m_source_range; }
+    SourceRange const& source_range() const { return m_source_range; }
     SourceRange& source_range() { return m_source_range; }
 
     String class_name() const;
@@ -62,7 +67,7 @@ public:
     {
     }
 
-    const FlyString& label() const { return m_label; }
+    FlyString const& label() const { return m_label; }
     void set_label(FlyString string) { m_label = string; }
 
 protected:
@@ -100,7 +105,7 @@ public:
     virtual void dump(int indent) const override;
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
-    const Expression& expression() const { return m_expression; };
+    Expression const& expression() const { return m_expression; };
 
 private:
     NonnullRefPtr<Expression> m_expression;
@@ -120,15 +125,15 @@ public:
         m_children.append(move(child));
     }
 
-    const NonnullRefPtrVector<Statement>& children() const { return m_children; }
+    NonnullRefPtrVector<Statement> const& children() const { return m_children; }
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
     void add_variables(NonnullRefPtrVector<VariableDeclaration>);
     void add_functions(NonnullRefPtrVector<FunctionDeclaration>);
-    const NonnullRefPtrVector<VariableDeclaration>& variables() const { return m_variables; }
-    const NonnullRefPtrVector<FunctionDeclaration>& functions() const { return m_functions; }
+    NonnullRefPtrVector<VariableDeclaration> const& variables() const { return m_variables; }
+    NonnullRefPtrVector<FunctionDeclaration> const& functions() const { return m_functions; }
 
 protected:
     ScopeNode(SourceRange source_range)
@@ -222,26 +227,30 @@ public:
         bool is_rest { false };
     };
 
-    const FlyString& name() const { return m_name; }
-    const Statement& body() const { return *m_body; }
-    const Vector<Parameter>& parameters() const { return m_parameters; };
+    FlyString const& name() const { return m_name; }
+    Statement const& body() const { return *m_body; }
+    Vector<Parameter> const& parameters() const { return m_parameters; };
     i32 function_length() const { return m_function_length; }
     bool is_strict_mode() const { return m_is_strict_mode; }
+    bool is_arrow_function() const { return m_is_arrow_function; }
+    FunctionKind kind() const { return m_kind; }
 
 protected:
-    FunctionNode(const FlyString& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, bool is_strict_mode)
+    FunctionNode(FlyString const& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, FunctionKind kind, bool is_strict_mode, bool is_arrow_function)
         : m_name(name)
         , m_body(move(body))
         , m_parameters(move(parameters))
         , m_variables(move(variables))
         , m_function_length(function_length)
+        , m_kind(kind)
         , m_is_strict_mode(is_strict_mode)
+        , m_is_arrow_function(is_arrow_function)
     {
     }
 
-    void dump(int indent, const String& class_name) const;
+    void dump(int indent, String const& class_name) const;
 
-    const NonnullRefPtrVector<VariableDeclaration>& variables() const { return m_variables; }
+    NonnullRefPtrVector<VariableDeclaration> const& variables() const { return m_variables; }
 
 protected:
     void set_name(FlyString name)
@@ -253,10 +262,12 @@ protected:
 private:
     FlyString m_name;
     NonnullRefPtr<Statement> m_body;
-    const Vector<Parameter> m_parameters;
+    Vector<Parameter> const m_parameters;
     NonnullRefPtrVector<VariableDeclaration> m_variables;
     const i32 m_function_length;
+    FunctionKind m_kind;
     bool m_is_strict_mode;
+    bool m_is_arrow_function { false };
 };
 
 class FunctionDeclaration final
@@ -265,9 +276,9 @@ class FunctionDeclaration final
 public:
     static bool must_have_name() { return true; }
 
-    FunctionDeclaration(SourceRange source_range, const FlyString& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, bool is_strict_mode = false)
+    FunctionDeclaration(SourceRange source_range, FlyString const& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, FunctionKind kind, bool is_strict_mode = false)
         : Declaration(move(source_range))
-        , FunctionNode(name, move(body), move(parameters), function_length, move(variables), is_strict_mode)
+        , FunctionNode(name, move(body), move(parameters), function_length, move(variables), kind, is_strict_mode, false)
     {
     }
 
@@ -282,10 +293,9 @@ class FunctionExpression final
 public:
     static bool must_have_name() { return false; }
 
-    FunctionExpression(SourceRange source_range, const FlyString& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, bool is_strict_mode, bool is_arrow_function = false)
+    FunctionExpression(SourceRange source_range, FlyString const& name, NonnullRefPtr<Statement> body, Vector<Parameter> parameters, i32 function_length, NonnullRefPtrVector<VariableDeclaration> variables, FunctionKind kind, bool is_strict_mode, bool is_arrow_function = false)
         : Expression(source_range)
-        , FunctionNode(name, move(body), move(parameters), function_length, move(variables), is_strict_mode)
-        , m_is_arrow_function(is_arrow_function)
+        , FunctionNode(name, move(body), move(parameters), function_length, move(variables), kind, is_strict_mode, is_arrow_function)
     {
     }
 
@@ -303,9 +313,10 @@ public:
     bool cannot_auto_rename() const { return m_cannot_auto_rename; }
     void set_cannot_auto_rename() { m_cannot_auto_rename = true; }
 
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
+
 private:
     bool m_cannot_auto_rename { false };
-    bool m_is_arrow_function { false };
 };
 
 class ErrorExpression final : public Expression {
@@ -318,6 +329,24 @@ public:
     Value execute(Interpreter&, GlobalObject&) const override { return {}; }
 };
 
+class YieldExpression final : public Expression {
+public:
+    explicit YieldExpression(SourceRange source_range, RefPtr<Expression> argument)
+        : Expression(move(source_range))
+        , m_argument(move(argument))
+    {
+    }
+
+    Expression const* argument() const { return m_argument; }
+
+    virtual Value execute(Interpreter&, GlobalObject&) const override;
+    virtual void dump(int indent) const override;
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
+
+private:
+    RefPtr<Expression> m_argument;
+};
+
 class ReturnStatement final : public Statement {
 public:
     explicit ReturnStatement(SourceRange source_range, RefPtr<Expression> argument)
@@ -326,7 +355,7 @@ public:
     {
     }
 
-    const Expression* argument() const { return m_argument; }
+    Expression const* argument() const { return m_argument; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -346,9 +375,9 @@ public:
     {
     }
 
-    const Expression& predicate() const { return *m_predicate; }
-    const Statement& consequent() const { return *m_consequent; }
-    const Statement* alternate() const { return m_alternate; }
+    Expression const& predicate() const { return *m_predicate; }
+    Statement const& consequent() const { return *m_consequent; }
+    Statement const* alternate() const { return m_alternate; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -369,8 +398,8 @@ public:
     {
     }
 
-    const Expression& test() const { return *m_test; }
-    const Statement& body() const { return *m_body; }
+    Expression const& test() const { return *m_test; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -390,8 +419,8 @@ public:
     {
     }
 
-    const Expression& test() const { return *m_test; }
-    const Statement& body() const { return *m_body; }
+    Expression const& test() const { return *m_test; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -411,8 +440,8 @@ public:
     {
     }
 
-    const Expression& object() const { return *m_object; }
-    const Statement& body() const { return *m_body; }
+    Expression const& object() const { return *m_object; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -433,10 +462,10 @@ public:
     {
     }
 
-    const ASTNode* init() const { return m_init; }
-    const Expression* test() const { return m_test; }
-    const Expression* update() const { return m_update; }
-    const Statement& body() const { return *m_body; }
+    ASTNode const* init() const { return m_init; }
+    Expression const* test() const { return m_test; }
+    Expression const* update() const { return m_update; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -459,9 +488,9 @@ public:
     {
     }
 
-    const ASTNode& lhs() const { return *m_lhs; }
-    const Expression& rhs() const { return *m_rhs; }
-    const Statement& body() const { return *m_body; }
+    ASTNode const& lhs() const { return *m_lhs; }
+    Expression const& rhs() const { return *m_rhs; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -482,9 +511,9 @@ public:
     {
     }
 
-    const ASTNode& lhs() const { return *m_lhs; }
-    const Expression& rhs() const { return *m_rhs; }
-    const Statement& body() const { return *m_body; }
+    ASTNode const& lhs() const { return *m_lhs; }
+    Expression const& rhs() const { return *m_rhs; }
+    Statement const& body() const { return *m_body; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -712,8 +741,8 @@ public:
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
 
-    const String& pattern() const { return m_pattern; }
-    const String& flags() const { return m_flags; }
+    String const& pattern() const { return m_pattern; }
+    String const& flags() const { return m_flags; }
 
 private:
     String m_pattern;
@@ -722,13 +751,13 @@ private:
 
 class Identifier final : public Expression {
 public:
-    explicit Identifier(SourceRange source_range, const FlyString& string)
+    explicit Identifier(SourceRange source_range, FlyString const& string)
         : Expression(move(source_range))
         , m_string(string)
     {
     }
 
-    const FlyString& string() const { return m_string; }
+    FlyString const& string() const { return m_string; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -756,7 +785,7 @@ public:
     {
     }
 
-    const Expression& key() const { return *m_key; }
+    Expression const& key() const { return *m_key; }
     Kind kind() const { return m_kind; }
     bool is_static() const { return m_is_static; }
 
@@ -870,7 +899,7 @@ private:
     ThisAndCallee compute_this_and_callee(Interpreter&, GlobalObject&) const;
 
     NonnullRefPtr<Expression> m_callee;
-    const Vector<Argument> m_arguments;
+    Vector<Argument> const m_arguments;
 };
 
 class NewExpression final : public CallExpression {
@@ -974,7 +1003,7 @@ public:
     }
 
     auto& target() const { return m_target; }
-    const Expression* init() const { return m_init; }
+    Expression const* init() const { return m_init; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -997,8 +1026,9 @@ public:
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
 
-    const NonnullRefPtrVector<VariableDeclarator>& declarations() const { return m_declarations; }
+    NonnullRefPtrVector<VariableDeclarator> const& declarations() const { return m_declarations; }
 
 private:
     DeclarationKind m_declaration_kind;
@@ -1023,8 +1053,8 @@ public:
     {
     }
 
-    const Expression& key() const { return m_key; }
-    const Expression& value() const
+    Expression const& key() const { return m_key; }
+    Expression const& value() const
     {
         VERIFY(m_value);
         return *m_value;
@@ -1067,7 +1097,7 @@ public:
     {
     }
 
-    const Vector<RefPtr<Expression>>& elements() const { return m_elements; }
+    Vector<RefPtr<Expression>> const& elements() const { return m_elements; }
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void dump(int indent) const override;
@@ -1096,12 +1126,12 @@ public:
     virtual void dump(int indent) const override;
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
-    const NonnullRefPtrVector<Expression>& expressions() const { return m_expressions; }
-    const NonnullRefPtrVector<Expression>& raw_strings() const { return m_raw_strings; }
+    NonnullRefPtrVector<Expression> const& expressions() const { return m_expressions; }
+    NonnullRefPtrVector<Expression> const& raw_strings() const { return m_raw_strings; }
 
 private:
-    const NonnullRefPtrVector<Expression> m_expressions;
-    const NonnullRefPtrVector<Expression> m_raw_strings;
+    NonnullRefPtrVector<Expression> const m_expressions;
+    NonnullRefPtrVector<Expression> const m_raw_strings;
 };
 
 class TaggedTemplateLiteral final : public Expression {
@@ -1118,8 +1148,8 @@ public:
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
 private:
-    const NonnullRefPtr<Expression> m_tag;
-    const NonnullRefPtr<TemplateLiteral> m_template_literal;
+    NonnullRefPtr<Expression> const m_tag;
+    NonnullRefPtr<TemplateLiteral> const m_template_literal;
 };
 
 class MemberExpression final : public Expression {
@@ -1138,8 +1168,8 @@ public:
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
     bool is_computed() const { return m_computed; }
-    const Expression& object() const { return *m_object; }
-    const Expression& property() const { return *m_property; }
+    Expression const& object() const { return *m_object; }
+    Expression const& property() const { return *m_property; }
 
     PropertyName computed_property_name(Interpreter&, GlobalObject&) const;
 
@@ -1193,15 +1223,15 @@ private:
 
 class CatchClause final : public ASTNode {
 public:
-    CatchClause(SourceRange source_range, const FlyString& parameter, NonnullRefPtr<BlockStatement> body)
+    CatchClause(SourceRange source_range, FlyString const& parameter, NonnullRefPtr<BlockStatement> body)
         : ASTNode(move(source_range))
         , m_parameter(parameter)
         , m_body(move(body))
     {
     }
 
-    const FlyString& parameter() const { return m_parameter; }
-    const BlockStatement& body() const { return m_body; }
+    FlyString const& parameter() const { return m_parameter; }
+    BlockStatement const& body() const { return m_body; }
 
     virtual void dump(int indent) const override;
     virtual Value execute(Interpreter&, GlobalObject&) const override;
@@ -1221,12 +1251,13 @@ public:
     {
     }
 
-    const BlockStatement& block() const { return m_block; }
-    const CatchClause* handler() const { return m_handler; }
-    const BlockStatement* finalizer() const { return m_finalizer; }
+    BlockStatement const& block() const { return m_block; }
+    CatchClause const* handler() const { return m_handler; }
+    BlockStatement const* finalizer() const { return m_finalizer; }
 
     virtual void dump(int indent) const override;
     virtual Value execute(Interpreter&, GlobalObject&) const override;
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
 
 private:
     NonnullRefPtr<BlockStatement> m_block;
@@ -1242,7 +1273,7 @@ public:
     {
     }
 
-    const Expression& argument() const { return m_argument; }
+    Expression const& argument() const { return m_argument; }
 
     virtual void dump(int indent) const override;
     virtual Value execute(Interpreter&, GlobalObject&) const override;
@@ -1261,8 +1292,8 @@ public:
     {
     }
 
-    const Expression* test() const { return m_test; }
-    const NonnullRefPtrVector<Statement>& consequent() const { return m_consequent; }
+    Expression const* test() const { return m_test; }
+    NonnullRefPtrVector<Statement> const& consequent() const { return m_consequent; }
 
     virtual void dump(int indent) const override;
     virtual Value execute(Interpreter&, GlobalObject&) const override;
@@ -1283,6 +1314,7 @@ public:
 
     virtual void dump(int indent) const override;
     virtual Value execute(Interpreter&, GlobalObject&) const override;
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
 
 private:
     NonnullRefPtr<Expression> m_discriminant;
@@ -1299,7 +1331,8 @@ public:
 
     virtual Value execute(Interpreter&, GlobalObject&) const override;
 
-    const FlyString& target_label() const { return m_target_label; }
+    FlyString const& target_label() const { return m_target_label; }
+    virtual void generate_bytecode(Bytecode::Generator&) const override;
 
 private:
     FlyString m_target_label;
@@ -1316,7 +1349,7 @@ public:
     virtual Value execute(Interpreter&, GlobalObject&) const override;
     virtual void generate_bytecode(Bytecode::Generator&) const override;
 
-    const FlyString& target_label() const { return m_target_label; }
+    FlyString const& target_label() const { return m_target_label; }
 
 private:
     FlyString m_target_label;
