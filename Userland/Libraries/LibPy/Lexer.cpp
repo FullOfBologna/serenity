@@ -13,7 +13,8 @@
 namespace Py {
 
 Lexer::Lexer(const StringView& input)
-    : m_input(input)
+    : m_idNameList(),
+    m_input(input)
 {
 }
 
@@ -95,6 +96,11 @@ static bool is_keyword(const StringView& string)
     }
     return keywords.contains(string);
 }
+
+// static bool is_namedVariable(const StringView& string)
+// {
+//     static HashTable<String> variables(array_size())
+// }
 
 // static bool is_known_type(const StringView& string)
 // {
@@ -644,12 +650,35 @@ Vector<Token> Lexer::lex()
             while (peek() && is_valid_nonfirst_character_of_identifier(peek()))
                 consume();
             auto token_view = StringView(m_input.characters_without_null_termination() + token_start_index, m_index - token_start_index);
+            
             if (is_keyword(token_view))
                 commit_token(Token::Type::Keyword);
             // else if (is_known_type(token_view))
             //     commit_token(Token::Type::KnownType);
             else
-                commit_token(Token::Type::Identifier);
+            {
+                //Right here parse the identifier into either Variables, Modules, and Functions.
+                if(m_index < tokens.size())
+                {
+                    Token prevToken = tokens[m_index];
+                    commit_token(Token::Type::Identifier);
+                    std::tuple<StringView,IdType> tempTuple;
+
+                    if(prevToken.type() == Token::Type::Keyword)
+                    {
+                        if(prevToken.text() == "def")
+                        {
+                            tempTuple = std::make_tuple(token_view, IdType::Function);
+                            m_idNameList.append(tempTuple);
+                        }
+                        else if(prevToken.text() == "class")
+                        {
+                            tempTuple = std::make_tuple(token_view, IdType::Class);
+                            m_idNameList.append(tempTuple);
+                        }
+                    }
+                } 
+            }
             continue;
         }
 
@@ -664,5 +693,7 @@ Vector<Token> Lexer::lex()
     }
     return tokens;
 }
+
+
 
 }

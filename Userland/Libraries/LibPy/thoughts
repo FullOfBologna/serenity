@@ -1,0 +1,17 @@
+When identifying variables, and storing their names, 
+
+I want either a var, a function, a class, or an input argument. 
+
+Want to highlight the variable if found in the text. 
+
+Provide basic autocompletion suggestion
+
+Highlight function calls and classes differently than variable names
+
+Initially store a vector of identifier as they appear. 
+
+Store a list of identifiers and whether they are a function, a class, or a variable. 
+
+This can be a tuple of Identifier string, and idType
+
+tuple(string, idType);

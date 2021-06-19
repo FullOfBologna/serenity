@@ -231,7 +231,7 @@
 #endif
 
 #ifndef PY_DEBUG
-#cmakedefine01 PY_DEBUG 01
+#cmakedefine01 PY_DEBUG
 #endif
 
 #ifndef KEYBOARD_SHORTCUTS_DEBUG
