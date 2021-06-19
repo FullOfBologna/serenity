@@ -10,6 +10,10 @@
 #include <AK/String.h>
 #include <ctype.h>
 
+//DEBUG Includes
+#include <AK/Debug.h>
+#include <AK/SourceLocation.h>
+
 namespace Py {
 
 Lexer::Lexer(const StringView& input)
@@ -657,12 +661,20 @@ Vector<Token> Lexer::lex()
             //     commit_token(Token::Type::KnownType);
             else
             {
+
                 //Right here parse the identifier into either Variables, Modules, and Functions.
-                if(m_index < tokens.size())
+                size_t prevTokenIndex = tokens.size()-1;
+                dbgln_if(PY_DEBUG, "{}: prevTokenIndex = {}, tokens.size(): {}",SourceLocation::current(), prevTokenIndex, tokens.size());
+
+                if(prevTokenIndex < tokens.size())
                 {
-                    Token prevToken = tokens[m_index];
+
+                    //Keyword Token does not contain the value of the Keyword. If we encounter a def or a class keyword, need to store its location in the token list... 
+                    
+                    Token prevToken = tokens[prevTokenIndex];
                     commit_token(Token::Type::Identifier);
                     std::tuple<StringView,IdType> tempTuple;
+                    dbgln_if(PY_DEBUG, "{}: prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), prevToken.text(), token_view, tokens.size());
 
                     if(prevToken.type() == Token::Type::Keyword)
                     {
@@ -670,14 +682,16 @@ Vector<Token> Lexer::lex()
                         {
                             tempTuple = std::make_tuple(token_view, IdType::Function);
                             m_idNameList.append(tempTuple);
+
+                            dbgln_if(PY_DEBUG, "{}: Function Name: {}, Type: Function", SourceLocation::current(), get<0>(m_idNameList[m_idNameList.size()-1]));
                         }
                         else if(prevToken.text() == "class")
                         {
                             tempTuple = std::make_tuple(token_view, IdType::Class);
                             m_idNameList.append(tempTuple);
                         }
-                    }
-                } 
+                    }   
+                }
             }
             continue;
         }

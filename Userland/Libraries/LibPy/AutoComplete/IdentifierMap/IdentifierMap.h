@@ -1,4 +1,4 @@
-//FuncttionTable.h
+
 #pragma once
 
 #include <AK/HashMap.h>
