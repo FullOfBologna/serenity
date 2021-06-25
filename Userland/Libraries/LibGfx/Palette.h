@@ -107,6 +107,8 @@ public:
     Color syntax_number() const { return color(ColorRole::SyntaxNumber); }
     Color syntax_string() const { return color(ColorRole::SyntaxString); }
     Color syntax_identifier() const { return color(ColorRole::SyntaxIdentifier); }
+    Color syntax_function_identifier() const { return color(ColorRole::SyntaxFunctionIdentifier);}
+    Color syntax_class_identifier() const { return color(ColorRole::SyntaxClassIdentifier);}
     Color syntax_type() const { return color(ColorRole::SyntaxType); }
     Color syntax_punctuation() const { return color(ColorRole::SyntaxPunctuation); }
     Color syntax_operator() const { return color(ColorRole::SyntaxOperator); }

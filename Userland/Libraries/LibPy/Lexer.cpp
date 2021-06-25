@@ -17,7 +17,9 @@
 namespace Py {
 
 Lexer::Lexer(const StringView& input)
-    : m_idNameList(),
+    : m_defTokenList(),
+    m_classTokenList(),
+    m_idNameList(),
     m_input(input)
 {
 }
@@ -656,41 +658,71 @@ Vector<Token> Lexer::lex()
             auto token_view = StringView(m_input.characters_without_null_termination() + token_start_index, m_index - token_start_index);
             
             if (is_keyword(token_view))
+            {
                 commit_token(Token::Type::Keyword);
+                if(token_view.equals_ignoring_case("def"))
+                {
+
+                    m_defTokenList.append(tokens.size()-1);
+                    // dbgln_if(PY_DEBUG, "{}: Def found! m_defTokenList: {}", SourceLocation::current(), m_defTokenList[tokens.size()-1]);
+
+                }
+
+                if(token_view.equals_ignoring_case("class"))
+                {
+                    m_classTokenList.append(tokens.size()-1);
+                }
+            }
             // else if (is_known_type(token_view))
             //     commit_token(Token::Type::KnownType);
             else
             {
 
                 //Right here parse the identifier into either Variables, Modules, and Functions.
-                size_t prevTokenIndex = tokens.size()-1;
-                dbgln_if(PY_DEBUG, "{}: prevTokenIndex = {}, tokens.size(): {}",SourceLocation::current(), prevTokenIndex, tokens.size());
+                // -2 to account for the whitespace between the def and the function name. 
+                size_t prevTokenIndex = tokens.size()-2;
+                // dbgln_if(PY_DEBUG, "{}: prevTokenIndex = {}, tokens.size(): {}",SourceLocation::current(), prevTokenIndex, tokens.size());
 
                 if(prevTokenIndex < tokens.size())
                 {
 
                     //Keyword Token does not contain the value of the Keyword. If we encounter a def or a class keyword, need to store its location in the token list... 
                     
-                    Token prevToken = tokens[prevTokenIndex];
+                    // Token prevToken = tokens[prevTokenIndex];
                     commit_token(Token::Type::Identifier);
                     std::tuple<StringView,IdType> tempTuple;
-                    dbgln_if(PY_DEBUG, "{}: prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), prevToken.text(), token_view, tokens.size());
+                    bool isVar = true;
 
-                    if(prevToken.type() == Token::Type::Keyword)
+                    
+                    // dbgln_if(PY_DEBUG, "prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), token_view, tokens.size());
+
+                    for(auto index : m_defTokenList)
                     {
-                        if(prevToken.text() == "def")
+                        if(prevTokenIndex == index)
                         {
+                            //We've found the def associated with this function call. 
                             tempTuple = std::make_tuple(token_view, IdType::Function);
                             m_idNameList.append(tempTuple);
-
-                            dbgln_if(PY_DEBUG, "{}: Function Name: {}, Type: Function", SourceLocation::current(), get<0>(m_idNameList[m_idNameList.size()-1]));
+                            isVar = false;
+                            // dbgln_if(PY_DEBUG, "{}: Function Name: {}, Type: Function", SourceLocation::current(), get<0>(m_idNameList[m_idNameList.size()-1]));
                         }
-                        else if(prevToken.text() == "class")
+                    }
+
+                    for(auto index : m_classTokenList)
+                    {
+                        if(prevTokenIndex == index)
                         {
                             tempTuple = std::make_tuple(token_view, IdType::Class);
                             m_idNameList.append(tempTuple);
+                            isVar = false;
                         }
-                    }   
+                    }
+                    
+                    if(isVar)
+                    {
+                        tempTuple = std::make_tuple(token_view, IdType::Variable);
+                        m_idNameList.append(tempTuple);
+                    }
                 }
             }
             continue;
@@ -709,5 +741,8 @@ Vector<Token> Lexer::lex()
 }
 
 
+Vector<std::tuple<StringView,IdType> > Lexer::idList(){
+    return m_idNameList;
+};
 
 }

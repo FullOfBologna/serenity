@@ -33,6 +33,8 @@ private:
     char peek(size_t offset = 0) const;
     char consume();
 
+    Vector<uint32_t> m_defTokenList;
+    Vector<uint32_t> m_classTokenList;
     Vector<std::tuple<StringView,IdType> > m_idNameList;
     StringView m_input;
     size_t m_index { 0 };

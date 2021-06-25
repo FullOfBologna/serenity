@@ -65,6 +65,8 @@ namespace Gfx {
     C(SyntaxComment)               \
     C(SyntaxControlKeyword)        \
     C(SyntaxIdentifier)            \
+    C(SyntaxFunctionIdentifier)    \
+    C(SyntaxClassIdentifier)       \
     C(SyntaxKeyword)               \
     C(SyntaxNumber)                \
     C(SyntaxOperator)              \

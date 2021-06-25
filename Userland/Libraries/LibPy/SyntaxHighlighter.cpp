@@ -22,8 +22,6 @@ static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::T
         return { palette.syntax_type(), true };
     // case Py::Token::Type::FunctionDefine:
     //     return { palette.syntax_keyword(), true};
-    case Py::Token::Type::Identifier:
-        return { palette.syntax_identifier(), false };
     case Py::Token::Type::DoubleQuotedString:
     case Py::Token::Type::SingleQuotedString:
     case Py::Token::Type::RawString:
@@ -44,6 +42,21 @@ static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::T
     }
 }
 
+static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::Token::Type type, Py::IdType idType)
+{
+    switch (type) {
+    case Py::Token::Type::Identifier:
+        if(idType == IdType::Function){
+            return {palette.syntax_function_identifier(),true};
+        }else if(idType == IdType::Class){
+            return { palette.syntax_class_identifier(), true };
+        } else {
+            return { palette.syntax_identifier(), false };
+        }
+    default:
+        return { palette.base_text(), false };
+    }
+}
 bool SyntaxHighlighter::is_identifier(u64 token) const
 {
     auto Py_token = static_cast<Py::Token::Type>(token);
@@ -61,6 +74,9 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
     auto text = m_client->get_text();
     Py::Lexer lexer(text);
     auto tokens = lexer.lex();
+    auto idList = lexer.idList();
+
+    uint32_t identifierIndex = 0;
 
     Vector<GUI::TextDocumentSpan> spans;
     for (auto& token : tokens) {
@@ -69,13 +85,25 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
         GUI::TextDocumentSpan span;
         span.range.set_start({ token.start().line, token.start().column });
         span.range.set_end({ token.end().line, token.end().column + 1 });
-        auto style = style_for_token_type(palette, token.type());
-        span.attributes.color = style.color;
-        span.attributes.bold = style.bold;
-        span.is_skippable = token.type() == Py::Token::Type::Whitespace;
-        span.data = static_cast<u64>(token.type());
-        spans.append(span);
+
+        if(token.type() == Token::Type::Identifier) {
+            auto style = style_for_token_type(palette, token.type(), std::get<1>(idList[identifierIndex]));
+            span.attributes.color = style.color;
+            span.attributes.bold = style.bold;
+            span.is_skippable = token.type() == Py::Token::Type::Whitespace;
+            span.data = static_cast<u64>(token.type());
+            spans.append(span);
+            identifierIndex++;
+        } else {
+            auto style = style_for_token_type(palette, token.type());
+            span.attributes.color = style.color;
+            span.attributes.bold = style.bold;
+            span.is_skippable = token.type() == Py::Token::Type::Whitespace;
+            span.data = static_cast<u64>(token.type());
+            spans.append(span);
+        }
     }
+
     m_client->do_set_spans(move(spans));
 
     m_has_brace_buddies = false;
