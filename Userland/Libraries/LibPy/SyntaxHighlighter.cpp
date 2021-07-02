@@ -44,11 +44,16 @@ static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::T
 
 static Syntax::TextStyle style_for_token_type(Gfx::Palette const& palette, Py::Token::Type type, Py::IdType idType)
 {
+
     switch (type) {
     case Py::Token::Type::Identifier:
         if(idType == IdType::Function){
+            dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "idType : Function");
+
             return {palette.syntax_function_identifier(),true};
         }else if(idType == IdType::Class){
+            dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "idType : Class");
+
             return { palette.syntax_class_identifier(), true };
         } else {
             return { palette.syntax_identifier(), false };
@@ -81,12 +86,13 @@ void SyntaxHighlighter::rehighlight(Palette const& palette)
     Vector<GUI::TextDocumentSpan> spans;
     for (auto& token : tokens) {
         // FIXME: The +1 for the token end column is a quick hack due to not wanting to modify the lexer (which is also used by the parser). Maybe there's a better way to do this.
-        dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "{} @ {}:{} - {}:{}", token.type_as_string(), token.start().line, token.start().column, token.end().line, token.end().column + 1);
         GUI::TextDocumentSpan span;
         span.range.set_start({ token.start().line, token.start().column });
         span.range.set_end({ token.end().line, token.end().column + 1 });
 
         if(token.type() == Token::Type::Identifier) {
+            // FIXME: If a new token is seen, don't add the token to the token list.
+            dbgln_if(SYNTAX_HIGHLIGHTING_DEBUG, "Token : {}", token.text());
             auto style = style_for_token_type(palette, token.type(), std::get<1>(idList[identifierIndex]));
             span.attributes.color = style.color;
             span.attributes.bold = style.bold;

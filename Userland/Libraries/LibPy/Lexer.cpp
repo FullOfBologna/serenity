@@ -693,8 +693,21 @@ Vector<Token> Lexer::lex()
                     std::tuple<StringView,IdType> tempTuple;
                     bool isVar = true;
 
-                    
-                    // dbgln_if(PY_DEBUG, "prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), token_view, tokens.size());
+                    dbgln_if(PY_DEBUG, "prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), token_view, tokens.size());
+
+                    //TODO - Put in a way to check whether the identifier has already been added 
+                    //       So the id List can be searched through to identify whether the identifier already exists.
+                    // Search through the idNameList for the current token. If already exists skip the next loops. 
+
+                    for(auto id : m_idNameList)
+                    {
+                        if(token_view == std::get<0>(id))
+                        {
+                            dbgln_if(PY_DEBUG, "prevToken: {}, token_view = {}, tokens.size(): {}",SourceLocation::current(), token_view, tokens.size());
+
+                            continue;
+                        }
+                    }
 
                     for(auto index : m_defTokenList)
                     {
